@@ -267,8 +267,6 @@ class Chessboard:
         # This actually needs to be aliased
         self.__activePieceImage = self.__imageBoard[x_index][y_index]
 
-        # print(self.__activePieceText)
-
 
     def __deselectPiece(self, event):
         """ Puts down the piece and marks its completion """
@@ -277,25 +275,19 @@ class Chessboard:
         x_index = getBoardX(event)
         y_index = getBoardY(event)
 
+        # Calculates the distances being moved by a piece
+        # Note that deltaX is horizontal move, and deltaY is a vertial move
         deltaX = x_index - self.__originalPosition[X_INDEX]
         deltaY = y_index - self.__originalPosition[Y_INDEX]
 
-        # This covers when trying to castle with king over rook, which the
-        # program would interpret as trying to capture your own rook
-        # Solution is when its doing that reassign it to moving to the square
-        # two from the king square.
-        # isCastling = False
-
-        
-        
-        # if self.__activePieceText.upper() == "K" and abs(deltaY) > 1:
-        #     isCastling = True
-
-        #TODO probably prevaluate conditionals because of things
-        # promotion = False`
+        # Records the piece being moved
+        moveText = self.__moveToBasicAN(self.__originalPosition, [x_index, y_index])
 
         # Checks if an actual piece is being pressed
         if not self.__activePieceRecord is None:
+
+            # This converts castling with K over R, just converting the move to
+            # K moving over two spaces horizontally
             if self.__activePieceText.upper() == 'K' and abs(deltaY) > 1:
                 if deltaY == 3:
                     deltaY = 2
@@ -304,41 +296,33 @@ class Chessboard:
                     deltaX = -2
                     y_index = y_index + 2
 
+            
+            # Chesks if the move is valid
             if self.__isLegalMove(self.__activePieceText, self.__originalPosition, [x_index, y_index], self.__textBoard):
 
-                # increments or resets halfmove counter
-                # also resets movehistory if there's a capture or a pawn move
-                # works because pawns can only go one direction and captures
-                # always are never able to come back to
+                # Oly pawn moves or captures reset the board position
                 if self.__activePieceText.upper() == "P" or not self.__textBoard[x_index][y_index] == '-':
                     self.__halfMoveCounter = 0
                     self.__moveHistory = []
                 else:
                     self.__halfMoveCounter += 1
 
-                # Records the move into the history
-                moveText = self.__moveToBasicAN(self.__originalPosition, [x_index, y_index])
+                # Centers the object onto the square it landed on
+                self.__canvas.moveto(self.__activePieceRecord,getCanvasX([x_index, y_index]),getCanvasY([x_index, y_index]))
 
-                # Centers the object
-                self.__canvas.moveto(
-                    self.__activePieceRecord,getCanvasX([x_index, y_index]),getCanvasY([x_index, y_index]))
-
-                # Deletes the piece that it moved onto (visually)
+                # Visaually removes the old piece's image if it moved onto one 
                 self.__canvas.delete(self.__recordBoard[x_index][y_index])
-
-                # Exception: en passant
+                # Removes the pawn during an en passant
                 if abs(deltaX) == 1 and abs(deltaY) == 1 and [x_index, y_index] == self.__positionToEnPassant:
                     self.__canvas.delete(self.__recordBoard[x_index+ (1 if self.__isWhite else -1)][y_index])
                     self.__recordBoard[x_index + (1 if self.__isWhite else -1)][y_index] = None
                     self.__textBoard[x_index + (1 if self.__isWhite else -1)][y_index] = '-'
                     self.__imageBoard[x_index + (1 if self.__isWhite else -1)][y_index] = None
                     
-
                 # Records the new position
                 self.__recordBoard[x_index][y_index] = copy.deepcopy(
                     self.__activePieceRecord)
                 self.__textBoard[x_index][y_index] = self.__activePieceText[:]
-
 
                 # Remove the old position of the piece
                 self.__recordBoard[self.__originalPosition[0]] \
@@ -346,15 +330,13 @@ class Chessboard:
                 self.__textBoard[self.__originalPosition[0]] \
                     [self.__originalPosition[1]] = '-'
                 
-                # print(self.__imageBoard)
-                # imageboard weirdness, needs to alias but manually has to insert a None atm
-                # TODO: make boards tuples rather than ints to hopefully get rid of this stupid none insertion
+                # Imageboard copyies the reference of the image and deletes
+                # the orignal
                 self.__imageBoard[x_index][y_index] = self.__activePieceImage
                 del self.__imageBoard[self.__originalPosition[0]][self.__originalPosition[1]]
                 self.__imageBoard[self.__originalPosition[X_INDEX]].insert(self.__originalPosition[Y_INDEX], None)
 
-
-                # This moves the rook as well if it detects a castle
+                # When castling, the rook also has to move
                 if self.__activePieceText.upper() == "K" and abs(deltaY) > 1:
                     rookX = 0
                     rookY = 0
@@ -383,19 +365,16 @@ class Chessboard:
                     self.__recordBoard[rookX][newRookY] = rookRecord
                     self.__textBoard[rookX][newRookY] = rookText
 
-
                     # Remove the old position of the piece
                     self.__recordBoard[rookX][rookY] = None
                     self.__textBoard[rookX][rookY] = '-'
-                    
-                    # print(self.__imageBoard)
-                    # imageboard weirdness, needs to alias but manually has to insert a None atm
-                    # TODO: make boards tuples rather than ints to hopefully get rid of this stupid none insertion
+
+                    # Copies the rook image alias
                     self.__imageBoard[rookX][newRookY] = self.__imageBoard[rookX][rookY]
                     del self.__imageBoard[rookX][rookY]
                     self.__imageBoard[rookX].insert(rookY, None)
 
-                    # Also has to manually remove its castling rights
+                    # Removes castling rights after castling
                     if self.__isWhite:
                         self.__whiteKingCastle = False
                         self.__blackKingCastle = False
@@ -403,34 +382,29 @@ class Chessboard:
                         self.__blackKingCastle = False
                         self.__blackQueenCastle = False             
 
-
-
-
-                # print("--\n"+str(self.__imageBoard))
-
-
-                # self.__imageBoard[self.__originalPosition[0]][ self.__originalPosition[1]] = None
-
-                # Promotion????
+                # When promoting, mit has to create a new queen image and
+                # change the visuals to match it
                 if x_index in [0, 7] and self.__activePieceText.upper() == 'P':
                     self.__textBoard[x_index][y_index] = 'Q' if self.__isWhite else 'q' 
                     self.__imageBoard[x_index][y_index] = self.__getPieceFromText('Q' if self.__isWhite else 'q')
                     self.__recordBoard[x_index][y_index] = self.__canvas.create_image(getCanvasX([x_index,y_index]), getCanvasY([x_index,y_index]), image = self.__imageBoard[x_index][y_index], anchor = NW)
 
 
-
-                # Setting en passant positions
+                # When a pawn moves two spaces, it records where the oponnent
+                # can take en passant
                 self.__positionToEnPassant = None
                 if self.__activePieceText.upper() == 'P':
                     if abs(self.__originalPosition[self.X_INDEX] - x_index) == 2:
                         self.__positionToEnPassant = [(-1 if self.__isWhite else 1) + self.__originalPosition[self.X_INDEX], self.__originalPosition[self.Y_INDEX]]
-                # print(self.__positionToEnPassant)
-
-                # Adds the last bit of the AN
+                
+                
                 gameState = self.__checkGameState()
+                
+                # Adds the last bit of the AN
                 if x_index in [0,7] and self.__activePieceText.upper() == 'P':
                     moveText += "=Q"
-
+                
+                # Game end states
                 if gameState == self.CHECK:
                     moveText += '+'
                 elif gameState == self.CHECKMATE:
@@ -441,7 +415,8 @@ class Chessboard:
                     print("DRAWN")
                     self.__isGameActive = False                    
 
-                # Castling rights I guess
+                # Removes more castling rights if the king/rook move
+                # Rooks
                 if self.__activePieceText == "R":
                     if self.__originalPosition[Y_INDEX] == 7:
                         self.__whiteKingCastle = False
@@ -453,6 +428,7 @@ class Chessboard:
                     elif self.__activePieceText == 0:
                         self.__blackQueenCastle = False
                 
+                # King
                 if self.__activePieceText == "K":
                     self.__whiteKingCastle = False
                     self.__whiteQueenCastle = False
@@ -461,20 +437,11 @@ class Chessboard:
                     self.__blackQueenCastle = False
 
                 # Forget the active piece
-                # TODO combine all three into a class
                 self.__activePieceRecord = None
                 self.__activePieceText = '-'
                 self.__activePieceImage = None
 
-
-                # # Updates the side move list
-                # labelText = self.__ANText.get()
-                # # for movePair in self.__moveHistory:/
-                #     # labelText += str(self.__moveCounter)+ ". \t" + movePair[0] + "\t"+movePair[1]+"\n"
-                # labelText += str(self.__moveCounter) + ".\t" + moveText + "\t" if self.__isWhite else moveText + "\n"
-                # self.__ANText.set(labelText)
-                # self.__moveHistory.append(moveText)
-
+                # Updates the move text on the sidebar
                 moveCounterText = self.__moveText.get()
 
                 if self.__isWhite:
@@ -482,7 +449,7 @@ class Chessboard:
                     whiteText += moveText+"\n"
                     self.__whiteText.set(whiteText)
                 else:
-                    # if black starts, white needs to leave a gab
+                    # if black starts, white needs to leave a gap
                     if len(moveCounterText) == 0:
                         self.__whiteText.set("\n") 
                     blackText = self.__blackText.get()
@@ -500,9 +467,8 @@ class Chessboard:
                 # Change the color of the move
                 self.__isWhite = not self.__isWhite
 
+                # Adds the current board position for 3-fold reptition
                 self.__boardHistory.append(copy.deepcopy(self.__textBoard))
-
-                # self.drawPieces()
             else:
                 self.__cancelMove(None)
                 print("illogal move")
@@ -569,8 +535,6 @@ class Chessboard:
             return False
         
         # 1 square movement of king
-        # if pieceText.upper() == 'K' and (abs(deltaX) > 1 or abs(deltaY) > 1):
-        #     return False
         if pieceText.upper() == "K":
             if abs(deltaX) > 1:
                 return False
@@ -646,6 +610,7 @@ class Chessboard:
             while not tempPosition == newPosition:
                 if not board[tempPosition[X_INDEX]][tempPosition[Y_INDEX]] == '-':
                     return False
+
                 tempPosition[X_INDEX] += xinc
                 tempPosition[Y_INDEX] += yinc
         
@@ -663,6 +628,14 @@ class Chessboard:
 
             if self.__inCheck(color, theoryBoard):
                 return False
+
+            if pieceText.upper() == "K" and abs(deltaY) == 2:
+                theoryBoard = copy.deepcopy(board)
+                theoryBoard[oldPosition[X_INDEX]][oldPosition[Y_INDEX]] = "-"
+                theoryBoard[newPosition[X_INDEX]][int(oldPosition[Y_INDEX]+deltaY/2)] = pieceText
+
+                if self.__inCheck(color, theoryBoard):
+                    return False
 
         return True
 
