@@ -4,17 +4,6 @@ from Coordinate import *
 import sys
 import os
 
-# NOTE: Whenever recording mouse position or displaying an image, the pixel and
-#       box coordinates will not align, and will be flipped. This is because
-#       when a row changes, the y must change, and when a column changes,
-#       the x must change. When converting mouse position to board indicies,
-#       the x will map to column, and y will map to row. When drawing it, other
-#       than when a piece follows the mouse, the same mapping is followed.
-#       
-#       For readability purposes, most use casesare hidden under the following
-#       functions: mouseToBox() and boxToCanvas(), where it also applies scaling
-#       arithmetic.
-
 class Chessboard:
     BROWN = "#B58863"
     LIGHT_BROWN = "#F0D9B5"
@@ -27,46 +16,41 @@ class Chessboard:
     STALEMATE = "Stalemate"
     CHECKMATE = "Checkmate"
     CHECK = "Check"
-    DRAW = "Draw"
+    DRAW  = "Draw"
 
     def __init__(self, base):
-        """ Takes in a tkinter object and sets up the board and bindings"""
+        """ Inits the Chessboard object from a Tkinter Base """
         
-        # Tkinter management
         self.__base = base
-        self.__canvas = Canvas(base, width = 760, height = 760, bg = 'White')
+        self.__canvas = Canvas(base, width = 760, height = 760, 
+                               bg = 'White')
         self.__canvas.pack(side = LEFT)
 
 
         self.__blackText = StringVar("")
-        self.__blackLabel = Label(base, textvariable = self.__blackText, justify = LEFT)
+        self.__blackLabel = Label(base, textvariable = self.__blackText,
+                                  justify = LEFT)
         self.__blackLabel.pack(side = RIGHT, anchor = NW)
 
         self.__whiteText = StringVar("")
-        self.__whiteLabel = Label(base, textvariable = self.__whiteText, justify = LEFT)
+        self.__whiteLabel = Label(base, textvariable = self.__whiteText,
+                                  justify = LEFT)
         self.__whiteLabel.pack(side = RIGHT, anchor = NW)       
 
         self.__moveText = StringVar("")
-        self.__moveLabel = Label(base, textvariable = self.__moveText, justify = LEFT)
+        self.__moveLabel = Label(base, textvariable = self.__moveText,
+                                 justify = LEFT)
         self.__moveLabel.pack(side = RIGHT, anchor = NW)
 
-        # Keeps track of the pieces in alphabetical format is used
-        # Is used exclusively for logical operators because its easy to read
-        self.__textBoard = [[None for i in range(self.BOARD_LEN)] \
+        # Tracks the board with characters (logic)
+        self.__textBoard = [[None for i in range(self.BOARD_LEN)]
                             for i in range(self.BOARD_LEN)]
-
-        # You need to keep aliases of Tkinter objects to prevent them from being
-        # garbage collected. imageBoard manages the pictures, and recordBoard
-        # manages the actual things being drawn on the canvas.
-        # For reference, you need to pass an image object to a canvas image
-        # drawing function, in which case that drawing needs its own assignment.
-        # While the imageBoard seems useless after drawing the first images,
-        # it needs to be kept updated because of promotion changing from a pawn
-        # to a q/r/n/b
-        self.__imageBoard = [[None for i in range(self.BOARD_LEN)] \
-                            for i in range(self.BOARD_LEN)]
-        self.__recordBoard = [[None for i in range(self.BOARD_LEN)] \
-                            for i in range(self.BOARD_LEN)]
+        # Tracks the board with image objects (image referencing)
+        self.__imageBoard = [[None for i in range(self.BOARD_LEN)]
+                             for i in range(self.BOARD_LEN)]
+        # Tracks the board with references (drawn image references)
+        self.__recordBoard = [[None for i in range(self.BOARD_LEN)]
+                              for i in range(self.BOARD_LEN)]
 
         # Bindings
         self.__base.bind('<B1-Motion>', self.__move)
@@ -78,23 +62,18 @@ class Chessboard:
         self.__activePieceText = '-'
         self.__activePieceRecord = None
         self.__activePieceText = None
-        
-
         self.__originalPosition = [-1,-1]
 
-        # Nonpositional game trackers
-        self.__isWhite = True
-
-        # Tracks all moves, specficially for en passant rulings
+        # Boards 
         self.__moveHistory = []
-
-        # Tracks all board states for threefold
         self.__boardHistory = []
 
-        # Current move counter
+        self.__isGameActive = True
+
+        # FENCode fields
+        self.__isWhite = True
         self.__moveCounter = 0
         self.__halfMoveCounter = 0
-
         self.__positionToEnPassant = None
 
         self.__whiteKingCastle = False
@@ -102,11 +81,9 @@ class Chessboard:
         self.__whiteQueenCastle = False
         self.__blackQueenCastle = False
 
-        self.__isGameActive = True
-
 
     def drawBoard(self):
-        """ Draws the alternating in color 8x8 board """
+        """ Draws an 8x8 board with alternating colors """
         
         # Used to aternate colors
         lightBrownFlag = True
@@ -119,17 +96,18 @@ class Chessboard:
                     getCanvasY(coordinatePair), 
                     getNextCanvasX(coordinatePair),
                     getNextCanvasY(coordinatePair), 
-                    fill = (self.LIGHT_BROWN if lightBrownFlag else self.BROWN), 
+                    fill = (self.LIGHT_BROWN if lightBrownFlag 
+                        else self.BROWN), 
                     width = 0)
 
-                #Color shifts on every box
+                # Color shifts on every column
                 lightBrownFlag = not lightBrownFlag
             
-            #Color shifts on every row
+            # Color shifts on every row
             lightBrownFlag = not lightBrownFlag
 
     def drawPieces(self):
-        """ Draws the pieces when ran after readFEN() """
+        """ Draws the pieces when ran after readFEN or defaultBoard """
         for row in range(self.BOARD_LEN):
             for col in range(self.BOARD_LEN):
                 coordinatePair = [row, col]
@@ -143,12 +121,11 @@ class Chessboard:
 
 
     def readFEN(self, FENCode):
-        """ Takes in a FENCode and converts it to 2D lists """
-        
-        # Gets the part of the FEN code relevant to the positionings
+        """ Takes in a FENCode and initializes the board """
 
         boardInfo = FENCode.split(' ')
 
+        # Splits the FENCode into relevant information
         boardCode = boardInfo[0]
         currentColor = boardInfo[1]
         castlingRights = boardInfo[2]
@@ -156,13 +133,11 @@ class Chessboard:
         halfMoveCount = boardInfo[4]
         fullMoveCount = boardInfo[5]
 
-
-
-
         cleanedCode = ""
         numberList = ['1','2','3','4','5','6','7','8']
+
+        # Converts numbers into dashes
         for index in range(len(boardCode)):
-            # Converts numbers into dashes
             if boardCode[index] in numberList:
                 for repeats in range(int(boardCode[index])):
                     cleanedCode += '-'
@@ -488,7 +463,6 @@ class Chessboard:
             self.__activePieceText = '-'
             self.__activePieceImage = None
 
-    # def __isLegalMove(self, pieceText, oldPosition, newPosition, board, isTheorhetical = False, color = None, positionToEnPassant = None, pawnToEnPassant = None):
     def __isLegalMove(self, pieceText, oldPosition, newPosition, board, isTheorhetical = False, color = None):
         if color is None:
             color = self.__isWhite
@@ -776,12 +750,15 @@ class Chessboard:
 
     @staticmethod
     def numToLetter(num):
+        """ Converts a number from 0-7 to a letter, A-H """
         return chr(num+97)
 
     @staticmethod
     def letterToNum(chr):
+        """ Converts a letter, A-H, to a number from 0-7 """
         return ord(chr) - 97
 
+    # CREDITS TO max OF Stackoverflow
     @staticmethod
     def resource_path(relative_path):
         """ Get absolute path to resource, works for dev and for PyInstaller """
