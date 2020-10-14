@@ -336,7 +336,7 @@ class Chessboard:
                         rookX = 0
                         rookText = 'r'
 
-                    rookRecord = copy.deepcopy(self.__recordBoard[rookX][rookY])
+                    rookRecord =copy.deepcopy(self.__recordBoard[rookX][rookY])
 
                     # Moves the rook
                     self.__canvas.moveto(
@@ -548,7 +548,8 @@ class Chessboard:
                 return False
 
         # Hybrid diagonal and horizontal of queen
-        if pieceText.upper() == 'Q' and not (abs(deltaX) == abs(deltaY) or deltaX * deltaY == 0):
+        if pieceText.upper() == 'Q' and not (abs(deltaX) == abs(deltaY) 
+                                             or deltaX * deltaY == 0):
             return False
 
         # WHITE PAWN
