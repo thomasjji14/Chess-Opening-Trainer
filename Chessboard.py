@@ -400,10 +400,10 @@ class Chessboard:
                     moveText += '+'
                 elif gameState == self.CHECKMATE:
                     moveText += "#"
-                    print("CHECKMATE")
+                    # print("CHECKMATE")
                     self.__isGameActive = False
                 elif gameState == self.DRAW:
-                    print("DRAWN")
+                    # print("DRAWN")
                     self.__isGameActive = False                    
 
                 # Removes more castling rights if the king/rook move
@@ -545,6 +545,10 @@ class Chessboard:
                     and board[7 if self.__isWhite else 0][1] == '-'):
                 return False 
             if deltaY in [-3, 4] or abs(deltaY) > 4:
+                return False
+            
+            if abs(deltaY) == 2 and self.__inCheck(self.__isWhite,
+                                                   self.__textBoard):
                 return False
 
         # Hybrid diagonal and horizontal of queen
