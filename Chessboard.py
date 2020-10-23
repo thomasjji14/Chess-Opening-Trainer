@@ -1,8 +1,9 @@
-from tkinter import *
 import copy
-from Coordinate import *
 import sys
 import os
+from tkinter import *
+from Coordinate import *
+from playsound import playsound
 
 class Chessboard:
     BROWN = "#B58863"
@@ -457,6 +458,15 @@ class Chessboard:
 
                 # Adds the current board position for 3-fold reptition
                 self.__boardHistory.append(copy.deepcopy(self.__textBoard))
+
+                path = "sfx/Move.mp3"
+
+                if gameState in [self.DRAW, self.CHECKMATE]:
+                    path = "sfx/GenericNotify.mp3"
+                elif 'x' in moveText:
+                    path = "sfx/Capture.mp3"
+                
+                playsound(self.resource_path(path), False)
             else:
                 self.__cancelMove(None)
 
