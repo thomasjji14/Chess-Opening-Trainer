@@ -232,6 +232,7 @@ class Chessboard:
                 self.__activePieceRecord, 
                 event.x-int(self.BOX_LEN/2), 
                 event.y-int(self.BOX_LEN/2))
+            self.__canvas.tag_raise(self.__activePieceRecord)
 
     def __deselectPiece(self, event):
         """ Puts down the piece and marks its completion """
@@ -245,12 +246,12 @@ class Chessboard:
         deltaX = x_index - self.__originalPosition[X_INDEX]
         deltaY = y_index - self.__originalPosition[Y_INDEX]
 
-        # Records the piece being moved
-        moveText = self.__moveToBasicAN(self.__originalPosition,
-                                        [x_index, y_index])
-
         # Checks if an actual piece is being pressed
         if not self.__activePieceRecord is None:
+
+            # Records the piece being moved
+            moveText = self.__moveToBasicAN(self.__originalPosition,
+                                            [x_index, y_index])
 
             # Converts K over R castling to a two-square king movement
             if self.__activePieceText.upper() == 'K' and abs(deltaY) > 1:
@@ -400,10 +401,8 @@ class Chessboard:
                     moveText += '+'
                 elif gameState == self.CHECKMATE:
                     moveText += "#"
-                    # print("CHECKMATE")
                     self.__isGameActive = False
                 elif gameState == self.DRAW:
-                    # print("DRAWN")
                     self.__isGameActive = False                    
 
                 # Removes more castling rights if the king/rook move
@@ -534,17 +533,17 @@ class Chessboard:
             if abs(deltaX) > 1:
                 return False
             # Kingside
-            if deltaY in [2, 3] and not (self.__whiteKingCastle 
+            if deltaY == 2 and not (self.__whiteKingCastle 
                     if self.__isWhite else self.__blackKingCastle):
                 return False
             
             # Queenside knight manually checked for rook movement
-            if deltaY in [-2, -4] and not (
+            if deltaY == -2 and not (
                     (self.__whiteQueenCastle 
                     if self.__isWhite else self.__blackQueenCastle) 
                     and board[7 if self.__isWhite else 0][1] == '-'):
                 return False 
-            if deltaY in [-3, 4] or abs(deltaY) > 4:
+            if abs(deltaY) > 2:
                 return False
             
             if abs(deltaY) == 2 and self.__inCheck(self.__isWhite,
@@ -820,7 +819,9 @@ base.title("Chess")
 board = Chessboard(base)
 board.drawBoard()
 
-board.readFEN(board.DEFAULT_FEN)
+# board.readFEN(board.DEFAULT_FEN)
+
+board.readFEN("rnb3nr/ppk3pp/4p3/1BB5/3Q4/1P1P4/P2P1PPP/RN2K1NR w KQ - 0 1")
 
 board.drawPieces()
 
