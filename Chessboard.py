@@ -84,6 +84,8 @@ class Chessboard:
         self.__whiteQueenCastle = False
         self.__blackQueenCastle = False
 
+        self.__isPlayerWhite = True
+
 
     def drawBoard(self):
         """ Draws an 8x8 board with alternating colors """
@@ -123,7 +125,7 @@ class Chessboard:
                         image = self.__imageBoard[row][col], 
                         anchor = NW)
 
-    def readFEN(self, FENCode):
+    def readFEN(self, FENCode, asWhite = True):
         """ Takes in a FENCode and initializes the board """
         boardInfo = FENCode.split(' ')
 
@@ -135,6 +137,10 @@ class Chessboard:
         halfMoveCount = boardInfo[4]
         fullMoveCount = boardInfo[5]
 
+        if not asWhite:
+            boardCode = boardCode[::-1]
+        self.__isPlayerWhite = asWhite
+
         cleanedCode = ""
         numberList = ['1','2','3','4','5','6','7','8']
 
@@ -144,12 +150,12 @@ class Chessboard:
                 for repeats in range(int(boardCode[index])):
                     cleanedCode += '-'
             else:
-                cleanedCode += FENCode[index]
+                cleanedCode += boardCode[index]
         
         self.__textBoard = [list(row) for row in cleanedCode.split('/')]
         self.__createImages()
 
-        # Assigns FEN fields to teh class
+        # Assigns FEN fields to the class
         self.__isWhite = currentColor == 'w'
 
         if 'K' in castlingRights:
@@ -246,6 +252,9 @@ class Chessboard:
         # deltaX represents horizontal move, and deltaY represents vertical
         deltaX = x_index - self.__originalPosition[X_INDEX]
         deltaY = y_index - self.__originalPosition[Y_INDEX]
+        if self.__isPlayerWhite:
+            deltaX *= -1
+            deltaY *= -1
 
         # Checks if an actual piece is being pressed
         if not self.__activePieceRecord is None:
@@ -256,12 +265,12 @@ class Chessboard:
 
             # Converts K over R castling to a two-square king movement
             if self.__activePieceText.upper() == 'K' and abs(deltaY) > 1:
-                if deltaY == 3:
-                    deltaY = 2
-                    y_index = y_index - 1
-                elif deltaY == -4:
-                    deltaX = -2
-                    y_index = y_index + 2
+                if deltaY == (3 if self.__isPlayerWhite else -3):
+                    deltaY = 2 if self.__isPlayerWhite else -2
+                    y_index = ((y_index - 1) if self.__isPlayerWhite else (y_index+1))
+                elif deltaY == (-4 if self.__isPlayerWhite else 4):
+                    deltaX = -2 if self.__isPlayerWhite else 2
+                    y_index = ((y_index + 2) if self.__isPlayerWhite else (y_index-2))
 
             # Chesks if the move is valid
             if self.__isLegalMove(
@@ -325,17 +334,23 @@ class Chessboard:
                     rookText = 'r'
 
                     # New rook positions
-                    if deltaY == 2:
+                    if deltaY == (2 if self.__isPlayerWhite else -2):
                         rookY = 7
                         newRookY = 5
-                    else:
+                        if not self.__isPlayerWhite:
+                            rookY = 0
+                            newRookY = 2
+                    else: # Quuenside
                         rookY = 0
                         newRookY = 3
+                        if not self.__isPlayerWhite:
+                            rookY = 7
+                            newRookY = 4
                     if self.__isWhite:
-                        rookX = 7
+                        rookX = 7 if self.__isPlayerWhite else 0
                         rookText = "R"
                     else:
-                        rookX = 0
+                        rookX = 0 if self.__isPlayerWhite else 7
                         rookText = 'r'
 
                     rookRecord =copy.deepcopy(self.__recordBoard[rookX][rookY])
@@ -362,7 +377,7 @@ class Chessboard:
                     # Removes castling rights after castling
                     if self.__isWhite:
                         self.__whiteKingCastle = False
-                        self.__blackKingCastle = False
+                        self.__whiteQueenCastle = False
                     else:
                         self.__blackKingCastle = False
                         self.__blackQueenCastle = False             
@@ -408,14 +423,14 @@ class Chessboard:
 
                 # Removes more castling rights if the king/rook move
                 if self.__activePieceText == "R":
-                    if self.__originalPosition[Y_INDEX] == 7:
+                    if self.__originalPosition[Y_INDEX] == (7 if self.__isPlayerWhite else 0):
                         self.__whiteKingCastle = False
-                    elif self.__originalPosition[Y_INDEX] == 0:
+                    elif self.__originalPosition[Y_INDEX] == (0 if self.__isPlayerWhite else 7):
                         self.__whiteQueenCastle = False
                 elif self.__activePieceText == 'r':
-                    if self.__originalPosition[Y_INDEX] == 7:
+                    if self.__originalPosition[Y_INDEX] == (7 if self.__isPlayerWhite else 0):
                         self.__blackKingCastle = False
-                    elif self.__activePieceText == 0:
+                    elif self.__originalPosition[Y_INDEX] == (0 if self.__isPlayerWhite else 7):
                         self.__blackQueenCastle = False
                 
                 if self.__activePieceText == "K":
@@ -499,7 +514,9 @@ class Chessboard:
         # Calculates how far the piece has moved
         deltaX = newPosition[X_INDEX] - oldPosition[X_INDEX]
         deltaY = newPosition[Y_INDEX] - oldPosition[Y_INDEX]
-
+        if not self.__isPlayerWhite:
+            deltaX *= -1
+            deltaY *= -1
 
 
         # Makes sure that the person is moving on their own turn
@@ -548,10 +565,16 @@ class Chessboard:
                 return False
             
             # Queenside knight manually checked for rook movement
+            knightX = 7 if self.__isWhite else 0
+            knightY = 1
+            if not self.__isPlayerWhite:
+                knightX = 7-knightX
+                knightY = 6
+
             if deltaY == -2 and not (
                     (self.__whiteQueenCastle 
                     if self.__isWhite else self.__blackQueenCastle) 
-                    and board[7 if self.__isWhite else 0][1] == '-'):
+                    and board[knightX][knightY] == '-'):
                 return False 
             if abs(deltaY) > 2:
                 return False
@@ -567,6 +590,8 @@ class Chessboard:
 
         # WHITE PAWN
         if pieceText == 'P':
+            whitePawnHome = 6 if self.__isPlayerWhite else 1
+
             # Cannot move to a position that already has a piece on
             if ((deltaX == -1 or deltaX == -2) and deltaY == 0
                     and not board[newPosition[X_INDEX]][newPosition[Y_INDEX]] 
@@ -580,7 +605,7 @@ class Chessboard:
                         and newPosition == self.__positionToEnPassant))):
                 return False    
             # On home row, can move only 1 or 2 spaces
-            if deltaX <-1 and not (oldPosition[X_INDEX] == 6 and deltaX == -2):
+            if deltaX <-1 and not (oldPosition[X_INDEX] == whitePawnHome and deltaX == -2):
                 return False
             if deltaX == -2 and not deltaY == 0:
                 return False
@@ -591,6 +616,8 @@ class Chessboard:
 
         # BLACK PAWN
         if pieceText == 'p':
+            blackPawnHome = 1 if self.__isPlayerWhite else 6
+
             # Cannot move to a position that already has a piece on
             if ((deltaX == 1 or deltaX == 2) and deltaY == 0
                     and not board[newPosition[X_INDEX]]
@@ -605,7 +632,7 @@ class Chessboard:
                         and newPosition == self.__positionToEnPassant))):
                 return False    
             # On home row, can move only 1 or 2 spaces
-            if deltaX > 1 and not (oldPosition[X_INDEX] == 1 and deltaX == 2):
+            if deltaX > 1 and not (oldPosition[X_INDEX] == blackPawnHome and deltaX == 2):
                 return False
             if deltaX == 2 and not deltaY == 0:
                 return False
@@ -620,6 +647,13 @@ class Chessboard:
             # Determines which direction to move towards
             xinc = 0 if deltaX == 0 else int(deltaX/(abs(deltaX)))
             yinc = 0 if deltaY == 0 else int(deltaY/(abs(deltaY)))
+
+            # Increments need to reverse signs because the logic is
+            # messed up with reverse FENs
+            if not self.__isPlayerWhite:
+                xinc *= -1
+                yinc *= -1
+
             tempPosition = copy.deepcopy(oldPosition)
 
             # Looks for if there's a piece in the way
@@ -656,7 +690,7 @@ class Chessboard:
                 theoryBoard = copy.deepcopy(board)
                 theoryBoard[oldPosition[X_INDEX]][oldPosition[Y_INDEX]] = "-"
                 theoryBoard[newPosition[X_INDEX]
-                    ][int(oldPosition[Y_INDEX]+deltaY/2)] = pieceText
+                    ][int((oldPosition[Y_INDEX]+newPosition[Y_INDEX])/2)] = pieceText
 
                 if self.__inCheck(color, theoryBoard):
                     return False
@@ -755,7 +789,7 @@ class Chessboard:
         deltaY = newPosition[Y_INDEX] - oldPosition[Y_INDEX]
 
         if abs(deltaY) > 1 and self.__activePieceText.upper() == "K":
-            if deltaY > 0:
+            if (deltaY > 0 and self.__isPlayerWhite) or (deltaY < 0 and not self.__isPlayerWhite):
                 return "O-O"
             return "O-O-O"
         if not pieceText.upper() == 'P':
@@ -768,7 +802,8 @@ class Chessboard:
                                               [oldPosition[X_INDEX], i],
                                               newPosition,
                                               self.__textBoard):
-                            moveString +=self.numToLetter(oldPosition[Y_INDEX])
+                            num = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
+                            moveString += self.numToLetter(num)
                             break
 
             # Checking for the row number,letter
@@ -779,13 +814,14 @@ class Chessboard:
                                               [i, oldPosition[Y_INDEX]], 
                                               newPosition, 
                                               self.__textBoard):
-                            moveString += str(8-oldPosition[X_INDEX])
+                            letter = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
+                            moveString += letter
                             break
 
         # Capturing with pawns
         if (pieceText.upper() == "P" and 
                 abs(newPosition[Y_INDEX] - oldPosition[Y_INDEX]) == 1):
-            moveString += self.numToLetter(oldPosition[Y_INDEX]) + 'x'
+            moveString += self.numToLetter(oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]) + 'x'
         # Captures with anything else
         if (not self.__textBoard[newPosition[X_INDEX]][newPosition[Y_INDEX]] 
                 == '-' and not pieceText.upper() == 'P'):
@@ -794,8 +830,8 @@ class Chessboard:
                 moveString += 'x'
 
         # Add new position to the text
-        moveString += self.numToLetter(newPosition[Y_INDEX])
-        moveString += str(8 - newPosition[X_INDEX])
+        moveString += self.numToLetter(newPosition[Y_INDEX] if self.__isPlayerWhite else 7-newPosition[Y_INDEX])
+        moveString += str(8 - newPosition[X_INDEX] if self.__isPlayerWhite else 1+newPosition[X_INDEX])
 
         return moveString
 
@@ -829,9 +865,7 @@ base.title("Chess")
 board = Chessboard(base)
 board.drawBoard()
 
-# board.readFEN(board.DEFAULT_FEN)
-
-board.readFEN("rnb3nr/ppk3pp/4p3/1BB5/3Q4/1P1P4/P2P1PPP/RN2K1NR w KQ - 0 1")
+board.readFEN(board.DEFAULT_FEN, False)
 
 board.drawPieces()
 
