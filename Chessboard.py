@@ -20,7 +20,7 @@ class Chessboard:
     DRAW  = "Draw"
     DEFAULT_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
-    def __init__(self, base):
+    def __init__(self, base, FENCode, asWhite = True):
         """ Inits the Chessboard object from a Tkinter Base """
 
         # Tkinter object initailizers        
@@ -84,10 +84,16 @@ class Chessboard:
         self.__whiteQueenCastle = False
         self.__blackQueenCastle = False
 
-        self.__isPlayerWhite = True
+        self.__isPlayerWhite = asWhite
+
+        self.__readFEN(FENCode, asWhite)
+
+        self.__drawBoard()
+        
+        self.__drawPieces()
 
 
-    def drawBoard(self):
+    def __drawBoard(self):
         """ Draws an 8x8 board with alternating colors """
         
         # Used to aternate colors
@@ -111,7 +117,7 @@ class Chessboard:
             # Color shifts on every row
             lightBrownFlag = not lightBrownFlag
 
-    def drawPieces(self):
+    def __drawPieces(self):
         """ Draws the pieces when ran after readFEN or defaultBoard """
 
         # Reads from the imageboard to draw
@@ -125,7 +131,7 @@ class Chessboard:
                         image = self.__imageBoard[row][col], 
                         anchor = NW)
 
-    def readFEN(self, FENCode, asWhite = True):
+    def __readFEN(self, FENCode, asWhite):
         """ Takes in a FENCode and initializes the board """
         boardInfo = FENCode.split(' ')
 
@@ -862,11 +868,6 @@ base = Tk()
 base.title("Chess")
 
 
-board = Chessboard(base)
-board.drawBoard()
-
-board.readFEN(board.DEFAULT_FEN, False)
-
-board.drawPieces()
+board = Chessboard(base, Chessboard.DEFAULT_FEN, False)
 
 base.mainloop()
