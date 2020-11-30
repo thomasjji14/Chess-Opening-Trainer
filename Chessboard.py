@@ -26,7 +26,7 @@ class Chessboard:
         # Tkinter object initailizers        
         self.__base = base
         self.__canvas = Canvas(base, width = 760, height = 760, 
-                               bg = 'White')
+                               bg = 'White', highlightthickness=0)
         self.__canvas.pack(side = LEFT)
 
         # Marks the movetext number and moves
@@ -54,6 +54,10 @@ class Chessboard:
         # Tracks the board with references (drawn image references)
         self.__recordBoard = [[None for i in range(self.BOARD_LEN)]
                               for i in range(self.BOARD_LEN)]
+
+        self.__promotionText = ""
+        self.__promotionImages = []
+        self.__promotionButtons = []
 
         # Bindings
         self.__base.bind('<B1-Motion>', self.__move)
@@ -92,6 +96,37 @@ class Chessboard:
         
         self.__drawPieces()
 
+    def __promotionPopup(self, y_index):
+        x_pixel = 0
+        y_pixel = 0
+
+        def makePromotionTextFunction(text):
+            def promotionText():
+                self.__promotionText = text
+            return promotionText
+
+        self.__frame = Frame(self.__base)
+
+        # Top of the board, white
+        promotionList = ['Q','N','R','B'] if self.__isWhite else ['q','n','r','b']
+
+        # Bottom screen
+        if self.__isWhite ^ self.__isPlayerWhite:
+            promotionList.reverse()
+            y_pixel = self.BOX_LEN * 4
+        x_pixel = self.BOX_LEN*y_index
+        
+        for i in range(4):
+            self.__promotionImages.append(self.__getPieceFromText(promotionList[i]))
+            self.__promotionButtons.append(
+                Button(self.__frame, bg = "White", borderwidth = 0,
+                       highlightthickness = 0, image = self.__promotionImages[i],
+                       command = makePromotionTextFunction(promotionList[i])
+                )
+            )
+            self.__promotionButtons[i].pack()
+        self.__testWindow = self.__canvas.create_window(x_pixel,y_pixel,anchor = NW, window = self.__frame)
+        self.__canvas.update_idletasks()
 
     def __drawBoard(self):
         """ Draws an 8x8 board with alternating colors """
@@ -222,6 +257,9 @@ class Chessboard:
         # Blocks moves after game completion
         if not self.__isGameActive:
             return
+        # Blocks selections outside of the game board
+        if event.x >= 760 or event.y >= 760:
+            return
 
         # Gets the box that the mouse is in
         x_index = getBoardX(event)
@@ -305,14 +343,13 @@ class Chessboard:
                 if (abs(deltaX) == 1 
                         and abs(deltaY) == 1 
                         and [x_index, y_index] == self.__positionToEnPassant):
+                    pawn_x_index = x_index + (-1 if self.__isWhite ^ self.__isPlayerWhite else 1)
+                    
                     self.__canvas.delete(self.__recordBoard
                         [x_index+ (1 if self.__isWhite else -1)][y_index])
-                    self.__recordBoard[x_index + (1 if self.__isWhite else -1)
-                        ][y_index] = None
-                    self.__textBoard[x_index + (1 if self.__isWhite else -1)
-                        ][y_index] = '-'
-                    self.__imageBoard[x_index + (1 if self.__isWhite else -1)
-                        ][y_index] = None
+                    self.__recordBoard[pawn_x_index][y_index] = None
+                    self.__textBoard[pawn_x_index][y_index] = '-'
+                    self.__imageBoard[pawn_x_index][y_index] = None
                     
                 # Records the new position
                 self.__recordBoard[x_index][y_index] = copy.deepcopy(
@@ -390,13 +427,24 @@ class Chessboard:
 
                 # Promotion updates
                 if x_index in [0, 7] and self.__activePieceText.upper() == 'P':
+                    initalText = self.__activePieceText
+                    self.__promotionPopup(y_index)
+                    while len(self.__promotionText) == 0:
+                        for button in self.__promotionButtons:
+                            button.update()
+                    self.__canvas.delete(self.__testWindow)
+
+                    # Needs to reassign because of mixing between canvas and
+                    # buttons
+                    self.__activePieceText = initalText
+         
                     self.__textBoard[x_index][y_index] = (
-                        'Q' if self.__isWhite else 'q')
+                        self.__promotionText)
                     self.__imageBoard[x_index][y_index] = self.\
-                       __getPieceFromText('Q' if self.__isWhite else 'q')
+                       __getPieceFromText(self.__promotionText)
                     self.__recordBoard[x_index][y_index] = self.\
                         __canvas.create_image(getCanvasX([x_index,y_index]),
-                        getCanvasY([x_index,y_index]),
+                        getCanvasY([x_index,y_index]),  
                         image = self.__imageBoard[x_index][y_index],
                         anchor = NW)
 
@@ -407,7 +455,7 @@ class Chessboard:
                     if abs(self.__originalPosition[self.X_INDEX] 
                             - x_index) == 2:
                         self.__positionToEnPassant = [
-                            (-1 if self.__isWhite else 1) + \
+                            (1 if (self.__isWhite ^ self.__isPlayerWhite) else -1) + \
                             self.__originalPosition[self.X_INDEX], 
                             self.__originalPosition[self.Y_INDEX]]
                 
@@ -416,8 +464,12 @@ class Chessboard:
                 
                 # Adds the last bit of the AN
                 if x_index in [0,7] and self.__activePieceText.upper() == 'P':
-                    moveText += "=Q"
-                
+                    moveText += "="+self.__promotionText.upper()
+                    
+                    # Clears all promotion variables
+                    self.__promotionText = ""
+                    self.__promotionButtons = []
+                    self.__promotionImages = []                
                 # Game end states
                 if gameState == self.CHECK:
                     moveText += '+'
@@ -607,7 +659,7 @@ class Chessboard:
             if ((deltaX == -1 and abs(deltaY) == 1) and not 
                     (board[newPosition[X_INDEX]]
                           [newPosition[Y_INDEX]].islower() 
-                    or (oldPosition[X_INDEX]== 3 
+                    or (oldPosition[X_INDEX]== (3 if self.__isPlayerWhite else 4) 
                         and newPosition == self.__positionToEnPassant))):
                 return False    
             # On home row, can move only 1 or 2 spaces
@@ -634,7 +686,7 @@ class Chessboard:
             if ((deltaX == 1 and abs(deltaY) == 1) and not 
                     (board[newPosition[X_INDEX]]
                           [newPosition[Y_INDEX]].isupper() 
-                    or (oldPosition[X_INDEX]== 4 
+                    or (oldPosition[X_INDEX]== (4 if self.__isPlayerWhite else 3) 
                         and newPosition == self.__positionToEnPassant))):
                 return False    
             # On home row, can move only 1 or 2 spaces
@@ -679,12 +731,12 @@ class Chessboard:
             theoryBoard = copy.deepcopy(board)
             theoryBoard[oldPosition[X_INDEX]][oldPosition[Y_INDEX]] = "-"
             theoryBoard[newPosition[X_INDEX]][newPosition[Y_INDEX]] = pieceText
-
+            #TODO TODO TODO
             # Manually has to remove the en passanted pawn 
             if (pieceText.upper() == 'P' and abs(deltaX) == 1 
                     and abs(deltaY) == 1 
                     and newPosition == self.__positionToEnPassant):
-                theoryBoard[newPosition[X_INDEX] + (1 if color else - 1)
+                theoryBoard[newPosition[X_INDEX] + (-1 if color ^ self.__isPlayerWhite else 1)
                     ][newPosition[Y_INDEX]] = "-"
 
             # Makes sure you don't self-discovered check yourself
