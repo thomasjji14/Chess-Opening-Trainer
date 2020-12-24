@@ -518,6 +518,7 @@ class Game:
             self.__beginShapeDrawing(event)
 
     def __beginShapeDrawing(self, event):
+        """ Records the inital coordinate that was right-clicked """
         x = event.x
         y = event.y
 
@@ -527,6 +528,8 @@ class Game:
         )
         
     def __finishShape(self, event):
+        """ Completes the shape if possible, erases any duplicates """
+        # This blocks if you right click and then left click
         if not len(self.__originalArrowCoordinate) == 0:
             x = event.x
             y = event.y    
@@ -536,19 +539,34 @@ class Game:
                 (int(y/self.BOX_LEN)+0.5)*self.BOX_LEN
             )
 
-            if final[X_INDEX] == self.__originalArrowCoordinate[X_INDEX] and final[Y_INDEX] == self.__originalArrowCoordinate[Y_INDEX]:
-
+            # Checks if the original and final square is the same
+            if final[X_INDEX] == self.__originalArrowCoordinate[X_INDEX] and \
+               final[Y_INDEX] == self.__originalArrowCoordinate[Y_INDEX]:
+                # Checks and removes a duplicate circle
                 if final in list(self.__activeCircles.keys()):
                     self.__canvas.delete(self.__activeCircles[final])
                     del self.__activeCircles[final]
+                # Draws the circle, indexing the selected box
                 else:
-                    self.__activeCircles[final] = self.__canvas.drawCircleHighlight(final)
+                    self.__activeCircles[final] = \
+                        self.__canvas.drawCircleHighlight(final)
+            # Arrow
             else:
-                if (self.__originalArrowCoordinate, final) in list(self.__activeArrows.keys()):
-                    self.__canvas.delete(self.__activeArrows[(self.__originalArrowCoordinate, final)])
-                    del self.__activeArrows[(self.__originalArrowCoordinate, final)]
+                # Checks and removes a duplicate arrow
+                if (self.__originalArrowCoordinate, final) in list(
+                    self.__activeArrows.keys()):
+                    self.__canvas.delete(
+                        self.__activeArrows[
+                            (self.__originalArrowCoordinate, final)]
+                        )
+                    del self.__activeArrows[
+                        (self.__originalArrowCoordinate, final)]
+                # Draws the arrow, indexing the original and final box
                 else:
-                    self.__activeArrows[(self.__originalArrowCoordinate, final)] = self.__canvas.drawArrow(self.__originalArrowCoordinate, final)
+                    self.__activeArrows[
+                        (self.__originalArrowCoordinate, final)] = \
+                         self.__canvas.drawArrow(
+                            self.__originalArrowCoordinate, final)
 
             self.__originalArrowCoordinate = ()
 
@@ -582,7 +600,12 @@ class Game:
                 )
             )
             self.__promotionButtons[i].pack()
-        self.__testWindow = self.__canvas.create_window(x_pixel,y_pixel,anchor = NW, window = self.__frame)
+        self.__testWindow = self.__canvas.create_window(
+            x_pixel,
+            y_pixel,
+            anchor = NW, 
+            window = self.__frame
+        )
         self.__canvas.update_idletasks()
 
     def __isLegalMove(self, 
@@ -684,13 +707,14 @@ class Game:
                 return False
             # Captures
             if ((deltaX == -1 and abs(deltaY) == 1) and not 
-                    (board[newPosition[X_INDEX]]
-                          [newPosition[Y_INDEX]].islower() 
-                    or (oldPosition[X_INDEX]== (3 if self.__isPlayerWhite else 4) 
+                (board[newPosition[X_INDEX]]
+                        [newPosition[Y_INDEX]].islower() 
+                or (oldPosition[X_INDEX]==(3 if self.__isPlayerWhite else 4) 
                         and newPosition == self.__positionToEnPassant))):
                 return False    
             # On home row, can move only 1 or 2 spaces
-            if deltaX <-1 and not (oldPosition[X_INDEX] == whitePawnHome and deltaX == -2):
+            if deltaX <-1 and not (
+                oldPosition[X_INDEX] == whitePawnHome and deltaX == -2):
                 return False
             if deltaX == -2 and not deltaY == 0:
                 return False
@@ -711,13 +735,14 @@ class Game:
 
             # Captures
             if ((deltaX == 1 and abs(deltaY) == 1) and not 
-                    (board[newPosition[X_INDEX]]
-                          [newPosition[Y_INDEX]].isupper() 
-                    or (oldPosition[X_INDEX]== (4 if self.__isPlayerWhite else 3) 
+                (board[newPosition[X_INDEX]]
+                        [newPosition[Y_INDEX]].isupper() 
+                or (oldPosition[X_INDEX]== (4 if self.__isPlayerWhite else 3) 
                         and newPosition == self.__positionToEnPassant))):
                 return False    
             # On home row, can move only 1 or 2 spaces
-            if deltaX > 1 and not (oldPosition[X_INDEX] == blackPawnHome and deltaX == 2):
+            if deltaX > 1 and not (
+                oldPosition[X_INDEX] == blackPawnHome and deltaX == 2):
                 return False
             if deltaX == 2 and not deltaY == 0:
                 return False
@@ -763,7 +788,8 @@ class Game:
             if (pieceText.upper() == 'P' and abs(deltaX) == 1 
                     and abs(deltaY) == 1 
                     and newPosition == self.__positionToEnPassant):
-                theoryBoard[newPosition[X_INDEX] + (-1 if color ^ self.__isPlayerWhite else 1)
+                theoryBoard[newPosition[X_INDEX] + (
+                    -1 if color ^ self.__isPlayerWhite else 1)
                     ][newPosition[Y_INDEX]] = "-"
 
             # Makes sure you don't self-discovered check yourself
@@ -775,7 +801,8 @@ class Game:
                 theoryBoard = copy.deepcopy(board)
                 theoryBoard[oldPosition[X_INDEX]][oldPosition[Y_INDEX]] = "-"
                 theoryBoard[newPosition[X_INDEX]
-                    ][int((oldPosition[Y_INDEX]+newPosition[Y_INDEX])/2)] = pieceText
+                    ][int((oldPosition[Y_INDEX]+newPosition[Y_INDEX])/2)] = \
+                                                                    pieceText
 
                 if self.__inCheck(color, theoryBoard):
                     return False
@@ -874,7 +901,8 @@ class Game:
         deltaY = newPosition[Y_INDEX] - oldPosition[Y_INDEX]
 
         if abs(deltaY) > 1 and self.__activePieceText.upper() == "K":
-            if (deltaY > 0 and self.__isPlayerWhite) or (deltaY < 0 and not self.__isPlayerWhite):
+            if (deltaY > 0 and self.__isPlayerWhite) or (
+                deltaY < 0 and not self.__isPlayerWhite):
                 return "O-O"
             return "O-O-O"
         if not pieceText.upper() == 'P':
