@@ -266,12 +266,13 @@ class Game:
 
             # Converts K over R castling to a two-square king movement
             if self.__activePieceText.upper() == 'K' and abs(deltaY) > 1:
-                if deltaY == (3 if self.__isPlayerWhite else -3):
-                    deltaY = 2 if self.__isPlayerWhite else -2
+                if deltaY == -3:
+                    deltaY = -2
                     y_index = ((y_index - 1) if self.__isPlayerWhite else (y_index+1))
-                elif deltaY == (-4 if self.__isPlayerWhite else 4):
-                    deltaX = -2 if self.__isPlayerWhite else 2
+                elif deltaY == 4:
+                    deltaX = 2
                     y_index = ((y_index + 2) if self.__isPlayerWhite else (y_index-2))
+
 
             # Chesks if the move is valid
             if self.__isLegalMove(
@@ -331,16 +332,15 @@ class Game:
                     rookX = 0
                     rookY = 0
                     newRookY = 0
-                    rookText = 'r'
 
                     # New rook positions
-                    if deltaY == (2 if self.__isPlayerWhite else -2):
+                    if deltaY == -2:
                         rookY = 7
                         newRookY = 5
                         if not self.__isPlayerWhite:
                             rookY = 0
                             newRookY = 2
-                    else: # Quuenside
+                    else: # Queenside
                         rookY = 0
                         newRookY = 3
                         if not self.__isPlayerWhite:
@@ -975,6 +975,6 @@ base = Tk()
 base.title("Chess")
 
 
-board = Game(base, Game.DEFAULT_FEN)
+board = Game(base, Game.DEFAULT_FEN, False)
 
 base.mainloop()
