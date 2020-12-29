@@ -260,10 +260,6 @@ class Game:
         # Checks if an actual piece is being pressed
         if not self.__activePieceRecord is None:
 
-            # Records the piece being moved
-            moveText = self.__moveToBasicAN(self.__originalPosition,
-                                            [x_index, y_index])
-
             # Converts K over R castling to a two-square king movement
             if self.__activePieceText.upper() == 'K' and abs(deltaY) > 1:
                 if deltaY == -3:
@@ -280,225 +276,240 @@ class Game:
                     self.__originalPosition, 
                     [x_index, y_index], 
                     self.__textBoard):
-
-                # Only pawn moves or captures reset the board position
-                if (self.__activePieceText.upper() == "P"
-                    or not self.__textBoard[x_index][y_index] == '-'):
-                    self.__halfMoveCounter = 0
-                    self.__moveHistory = []
-                else:
-                    self.__halfMoveCounter += 1
-
-                # Centers the object onto the square it landed on
-                self.__canvas.moveto(
-                    self.__activePieceRecord,
-                    getCanvasX([x_index, y_index]),
-                    getCanvasY([x_index, y_index]))
-
-                # Removes old piece images on capture
-                self.__canvas.delete(self.__recordBoard[x_index][y_index])
-                # Removes the pawn during an en passant
-                if (abs(deltaX) == 1 
-                        and abs(deltaY) == 1 
-                        and [x_index, y_index] == self.__positionToEnPassant):
-                    pawn_x_index = x_index + (-1 if self.__isWhite ^ self.__isPlayerWhite else 1)
-                    
-                    self.__canvas.delete(self.__recordBoard
-                        [x_index+ (1 if self.__isWhite else -1)][y_index])
-                    self.__recordBoard[pawn_x_index][y_index] = None
-                    self.__textBoard[pawn_x_index][y_index] = '-'
-                    self.__imageBoard[pawn_x_index][y_index] = None
-                    
-                # Records the new position
-                self.__recordBoard[x_index][y_index] = copy.deepcopy(
-                    self.__activePieceRecord)
-                self.__textBoard[x_index][y_index] = self.__activePieceText[:]
-
-                # Remove the old position of the piece
-                self.__recordBoard[self.__originalPosition[0]][
-                    self.__originalPosition[1]] = None
-                self.__textBoard[self.__originalPosition[0]][
-                    self.__originalPosition[1]] = '-'
-                
-                # Copies reference of image and deletes the oriignal
-                self.__imageBoard[x_index][y_index] = self.__activePieceImage
-                del self.__imageBoard[self.__originalPosition[0]][
-                    self.__originalPosition[1]]
-                self.__imageBoard[self.__originalPosition[X_INDEX]].insert(
-                    self.__originalPosition[Y_INDEX], None)
-
-                # Manually assigns rook displacement
-                if self.__activePieceText.upper() == "K" and abs(deltaY) > 1:
-                    rookX = 0
-                    rookY = 0
-                    newRookY = 0
-
-                    # New rook positions
-                    if deltaY == -2:
-                        rookY = 7
-                        newRookY = 5
-                        if not self.__isPlayerWhite:
-                            rookY = 0
-                            newRookY = 2
-                    else: # Queenside
-                        rookY = 0
-                        newRookY = 3
-                        if not self.__isPlayerWhite:
-                            rookY = 7
-                            newRookY = 4
-                    if self.__isWhite:
-                        rookX = 7 if self.__isPlayerWhite else 0
-                        rookText = "R"
-                    else:
-                        rookX = 0 if self.__isPlayerWhite else 7
-                        rookText = 'r'
-
-                    rookRecord =copy.deepcopy(self.__recordBoard[rookX][rookY])
-
-                    # Moves the rook
-                    self.__canvas.moveto(
-                        rookRecord,getCanvasX([rookX, newRookY])
-                        ,getCanvasY([rookX, newRookY]))
-
-                    # Records the new position
-                    self.__recordBoard[rookX][newRookY] = rookRecord
-                    self.__textBoard[rookX][newRookY] = rookText
-
-                    # Remove the old position of the piece
-                    self.__recordBoard[rookX][rookY] = None
-                    self.__textBoard[rookX][rookY] = '-'
-
-                    # Copies the rook image alias
-                    self.__imageBoard[rookX][newRookY] = self.__imageBoard[
-                        rookX][rookY]
-                    del self.__imageBoard[rookX][rookY]
-                    self.__imageBoard[rookX].insert(rookY, None)
-
-                    # Removes castling rights after castling
-                    if self.__isWhite:
-                        self.__whiteKingCastle = False
-                        self.__whiteQueenCastle = False
-                    else:
-                        self.__blackKingCastle = False
-                        self.__blackQueenCastle = False             
-
-                # Promotion updates
-                if x_index in [0, 7] and self.__activePieceText.upper() == 'P':
-                    initalText = self.__activePieceText
-                    self.__promotionPopup(y_index)
-                    while len(self.__promotionText) == 0:
-                        for button in self.__promotionButtons:
-                            button.update()
-                    self.__canvas.delete(self.__testWindow)
-
-                    # Needs to reassign because of mixing between canvas and
-                    # buttons
-                    self.__activePieceText = initalText
-         
-                    self.__textBoard[x_index][y_index] = (
-                        self.__promotionText)
-                    self.__imageBoard[x_index][y_index] = self.\
-                       __getPieceFromText(self.__promotionText)
-                    self.__recordBoard[x_index][y_index] = self.\
-                        __canvas.create_image(getCanvasX([x_index,y_index]),
-                        getCanvasY([x_index,y_index]),  
-                        image = self.__imageBoard[x_index][y_index],
-                        anchor = NW)
-
-
-                # Records when the oponnent can take en passant
-                self.__positionToEnPassant = None
-                if self.__activePieceText.upper() == 'P':
-                    if abs(self.__originalPosition[self.X_INDEX] 
-                            - x_index) == 2:
-                        self.__positionToEnPassant = [
-                            (1 if (self.__isWhite ^ self.__isPlayerWhite) else -1) + \
-                            self.__originalPosition[self.X_INDEX], 
-                            self.__originalPosition[self.Y_INDEX]]
-                
-                
-                gameState = self.__checkGameState()
-                
-                # Adds the last bit of the AN
-                if x_index in [0,7] and self.__activePieceText.upper() == 'P':
-                    moveText += "="+self.__promotionText.upper()
-                    
-                    # Clears all promotion variables
-                    self.__promotionText = ""
-                    self.__promotionButtons = []
-                    self.__promotionImages = []                
-                # Game end states
-                if gameState == self.CHECK:
-                    moveText += '+'
-                elif gameState == self.CHECKMATE:
-                    moveText += "#"
-                    self.__isGameActive = False
-                elif gameState == self.DRAW:
-                    self.__isGameActive = False                    
-
-                # Removes more castling rights if the king/rook move
-                if self.__activePieceText == "R":
-                    if self.__originalPosition[Y_INDEX] == (7 if self.__isPlayerWhite else 0):
-                        self.__whiteKingCastle = False
-                    elif self.__originalPosition[Y_INDEX] == (0 if self.__isPlayerWhite else 7):
-                        self.__whiteQueenCastle = False
-                elif self.__activePieceText == 'r':
-                    if self.__originalPosition[Y_INDEX] == (7 if self.__isPlayerWhite else 0):
-                        self.__blackKingCastle = False
-                    elif self.__originalPosition[Y_INDEX] == (0 if self.__isPlayerWhite else 7):
-                        self.__blackQueenCastle = False
-                
-                if self.__activePieceText == "K":
-                    self.__whiteKingCastle = False
-                    self.__whiteQueenCastle = False
-                if self.__activePieceText == 'k':
-                    self.__blackKingCastle = False
-                    self.__blackQueenCastle = False
-
-                # Forget the active piece
-                self.__activePieceRecord = None
-                self.__activePieceText = '-'
-                self.__activePieceImage = None
-
-                # Updates the move text on the sidebar
-                moveCounterText = self.__moveText.get()
-
-                if self.__isWhite:
-                    whiteText = self.__whiteText.get()
-                    whiteText += moveText+"\n"
-                    self.__whiteText.set(whiteText)
-                else:
-                    # if black starts, white needs to leave a gap
-                    if len(moveCounterText) == 0:
-                        self.__whiteText.set("\n") 
-                    blackText = self.__blackText.get()
-                    blackText += moveText + "\n"
-                    self.__blackText.set(blackText)
-
-                if len(moveCounterText) == 0 or self.__isWhite:
-                    moveCounterText += str(self.__moveCounter) + ".\n"
-                self.__moveText.set(moveCounterText)                        
-
-                self.__moveHistory.append(moveText)
-
-                self.__moveCounter += int(not self.__isWhite)
-
-                # Change the color of the move
-                self.__isWhite = not self.__isWhite
-
-                # Adds the current board position for 3-fold reptition
-                self.__boardHistory.append(copy.deepcopy(self.__textBoard))
-
-                path = "sfx/Move.mp3"
-
-                if gameState in [self.DRAW, self.CHECKMATE]:
-                    path = "sfx/GenericNotify.mp3"
-                elif 'x' in moveText:
-                    path = "sfx/Capture.mp3"
-                
-                playsound(self.resource_path(path), False)
+                self.__endMove(x_index, y_index)
             else:
                 self.__rightClickEvent(None)
+
+    def __endMove(self, finalX, finalY):
+        # Calculates the distances being moved by a piece
+        # deltaX represents horizontal move, and deltaY represents vertical
+        deltaX = finalX - self.__originalPosition[X_INDEX]
+        deltaY = finalY - self.__originalPosition[Y_INDEX]
+        if self.__isPlayerWhite:
+            deltaX *= -1
+            deltaY *= -1
+
+        # Only pawn moves or captures reset the board position
+        if (self.__activePieceText.upper() == "P"
+            or not self.__textBoard[finalX][deltaY] == '-'):
+            self.__halfMoveCounter = 0
+            self.__moveHistory = []
+        else:
+            self.__halfMoveCounter += 1
+
+        # Centers the object onto the square it landed on
+        self.__canvas.moveto(
+            self.__activePieceRecord,
+            getCanvasX([finalX, deltaY]),
+            getCanvasY([finalX, deltaY]))
+
+        # Removes old piece images on capture
+        self.__canvas.delete(self.__recordBoard[finalX][deltaY])
+        # Removes the pawn during an en passant
+        if (abs(deltaX) == 1 
+                and abs(deltaY) == 1 
+                and [finalX, deltaY] == self.__positionToEnPassant):
+            pawn_x_index = finalX + (-1 if self.__isWhite ^ self.__isPlayerWhite else 1)
+            
+            self.__canvas.delete(self.__recordBoard
+                [finalX+ (1 if self.__isWhite else -1)][deltaY])
+            self.__recordBoard[pawn_x_index][deltaY] = None
+            self.__textBoard[pawn_x_index][deltaY] = '-'
+            self.__imageBoard[pawn_x_index][deltaY] = None
+            
+        # Records the new position
+        self.__recordBoard[finalX][deltaY] = copy.deepcopy(
+            self.__activePieceRecord)
+        self.__textBoard[finalX][deltaY] = self.__activePieceText[:]
+
+        # Remove the old position of the piece
+        self.__recordBoard[self.__originalPosition[0]][
+            self.__originalPosition[1]] = None
+        self.__textBoard[self.__originalPosition[0]][
+            self.__originalPosition[1]] = '-'
+        
+        # Copies reference of image and deletes the oriignal
+        self.__imageBoard[finalX][deltaY] = self.__activePieceImage
+        del self.__imageBoard[self.__originalPosition[0]][
+            self.__originalPosition[1]]
+        self.__imageBoard[self.__originalPosition[X_INDEX]].insert(
+            self.__originalPosition[Y_INDEX], None)
+
+        # Manually assigns rook displacement
+        if self.__activePieceText.upper() == "K" and abs(deltaY) > 1:
+            rookX = 0
+            rookY = 0
+            newRookY = 0
+
+            # New rook positions
+            if deltaY == -2:
+                rookY = 7
+                newRookY = 5
+                if not self.__isPlayerWhite:
+                    rookY = 0
+                    newRookY = 2
+            else: # Queenside
+                rookY = 0
+                newRookY = 3
+                if not self.__isPlayerWhite:
+                    rookY = 7
+                    newRookY = 4
+            if self.__isWhite:
+                rookX = 7 if self.__isPlayerWhite else 0
+                rookText = "R"
+            else:
+                rookX = 0 if self.__isPlayerWhite else 7
+                rookText = 'r'
+
+            rookRecord =copy.deepcopy(self.__recordBoard[rookX][rookY])
+
+            # Moves the rook
+            self.__canvas.moveto(
+                rookRecord,getCanvasX([rookX, newRookY])
+                ,getCanvasY([rookX, newRookY]))
+
+            # Records the new position
+            self.__recordBoard[rookX][newRookY] = rookRecord
+            self.__textBoard[rookX][newRookY] = rookText
+
+            # Remove the old position of the piece
+            self.__recordBoard[rookX][rookY] = None
+            self.__textBoard[rookX][rookY] = '-'
+
+            # Copies the rook image alias
+            self.__imageBoard[rookX][newRookY] = self.__imageBoard[
+                rookX][rookY]
+            del self.__imageBoard[rookX][rookY]
+            self.__imageBoard[rookX].insert(rookY, None)
+
+            # Removes castling rights after castling
+            if self.__isWhite:
+                self.__whiteKingCastle = False
+                self.__whiteQueenCastle = False
+            else:
+                self.__blackKingCastle = False
+                self.__blackQueenCastle = False             
+
+        # Promotion updates
+        if finalX in [0, 7] and self.__activePieceText.upper() == 'P':
+            initalText = self.__activePieceText
+            self.__promotionPopup(deltaY)
+            while len(self.__promotionText) == 0:
+                for button in self.__promotionButtons:
+                    button.update()
+            self.__canvas.delete(self.__testWindow)
+
+            # Needs to reassign because of mixing between canvas and
+            # buttons
+            self.__activePieceText = initalText
+    
+            self.__textBoard[finalX][deltaY] = (
+                self.__promotionText)
+            self.__imageBoard[finalX][deltaY] = self.\
+                __getPieceFromText(self.__promotionText)
+            self.__recordBoard[finalX][deltaY] = self.\
+                __canvas.create_image(getCanvasX([finalX,deltaY]),
+                getCanvasY([finalX,deltaY]),  
+                image = self.__imageBoard[finalX][deltaY],
+                anchor = NW)
+
+
+        # Records when the oponnent can take en passant
+        self.__positionToEnPassant = None
+        if self.__activePieceText.upper() == 'P':
+            if abs(self.__originalPosition[self.X_INDEX] 
+                    - finalX) == 2:
+                self.__positionToEnPassant = [
+                    (1 if (self.__isWhite ^ self.__isPlayerWhite) else -1) + \
+                    self.__originalPosition[self.X_INDEX], 
+                    self.__originalPosition[self.Y_INDEX]]
+        
+        
+        gameState = self.__checkGameState()
+
+        # Records the piece being moved
+        moveText = self.__moveToBasicAN(self.__originalPosition,
+                                        [finalX, deltaY])
+        
+        # Adds the last bit of the AN
+        if finalX in [0,7] and self.__activePieceText.upper() == 'P':
+            moveText += "="+self.__promotionText.upper()
+            
+            # Clears all promotion variables
+            self.__promotionText = ""
+            self.__promotionButtons = []
+            self.__promotionImages = []                
+        # Game end states
+        if gameState == self.CHECK:
+            moveText += '+'
+        elif gameState == self.CHECKMATE:
+            moveText += "#"
+            self.__isGameActive = False
+        elif gameState == self.DRAW:
+            self.__isGameActive = False                    
+
+        # Removes more castling rights if the king/rook move
+        if self.__activePieceText == "R":
+            if self.__originalPosition[Y_INDEX] == (7 if self.__isPlayerWhite else 0):
+                self.__whiteKingCastle = False
+            elif self.__originalPosition[Y_INDEX] == (0 if self.__isPlayerWhite else 7):
+                self.__whiteQueenCastle = False
+        elif self.__activePieceText == 'r':
+            if self.__originalPosition[Y_INDEX] == (7 if self.__isPlayerWhite else 0):
+                self.__blackKingCastle = False
+            elif self.__originalPosition[Y_INDEX] == (0 if self.__isPlayerWhite else 7):
+                self.__blackQueenCastle = False
+        
+        if self.__activePieceText == "K":
+            self.__whiteKingCastle = False
+            self.__whiteQueenCastle = False
+        if self.__activePieceText == 'k':
+            self.__blackKingCastle = False
+            self.__blackQueenCastle = False
+
+        # Forget the active piece
+        self.__activePieceRecord = None
+        self.__activePieceText = '-'
+        self.__activePieceImage = None
+
+        # Updates the move text on the sidebar
+        moveCounterText = self.__moveText.get()
+
+        if self.__isWhite:
+            whiteText = self.__whiteText.get()
+            whiteText += moveText+"\n"
+            self.__whiteText.set(whiteText)
+        else:
+            # if black starts, white needs to leave a gap
+            if len(moveCounterText) == 0:
+                self.__whiteText.set("\n") 
+            blackText = self.__blackText.get()
+            blackText += moveText + "\n"
+            self.__blackText.set(blackText)
+
+        if len(moveCounterText) == 0 or self.__isWhite:
+            moveCounterText += str(self.__moveCounter) + ".\n"
+        self.__moveText.set(moveCounterText)                        
+
+        self.__moveHistory.append(moveText)
+
+        self.__moveCounter += int(not self.__isWhite)
+
+        # Change the color of the move
+        self.__isWhite = not self.__isWhite
+
+        # Adds the current board position for 3-fold reptition
+        self.__boardHistory.append(copy.deepcopy(self.__textBoard))
+
+        path = "sfx/Move.mp3"
+
+        if gameState in [self.DRAW, self.CHECKMATE]:
+            path = "sfx/GenericNotify.mp3"
+        elif 'x' in moveText:
+            path = "sfx/Capture.mp3"
+        
+        playsound(self.resource_path(path), False)
+
 
     def __rightClickEvent(self, event):
         """ Restores the board prior to clicking anything """
@@ -871,8 +882,6 @@ class Game:
         if occurences == 2:
             return self.DRAW
 
-        return None
-
     def __canMove(self):
         """ Determines if a player is able to move """
         color = not self.__isWhite
@@ -948,6 +957,42 @@ class Game:
 
         return moveString
 
+    def pushMove(self, moveText):
+        # For reference, 0,0 is A8, 7,7 is H1
+
+        # Strips the move of special characters
+        moveText = moveText.replace("#","" ).replace("+", "").replace("x", "")
+
+        pieceText = "P"
+
+        if moveText[0].isupper():
+            pieceText = moveText[0]
+            moveText = moveText[1:]
+        
+        if not self.__isWhite:
+            pieceText = pieceText.lower()
+
+        
+        # if rank amd/or file was specified
+        if len(moveText) > 2:
+            if len(moveText) == 4: #full AN
+                startPosX = 8-int(moveText[1]) if self.__isPlayerWhite else int(moveText[1])-1
+                startPosY = self.letterToNum(moveText[0]) if self.__isPlayerWhite else 7-self.letterToNum(moveText[0])
+                endPosX = 8-int(moveText[3]) if self.__isPlayerWhite else int(moveText[3])-1
+                endPosY = self.letterToNum(moveText[2]) if self.__isPlayerWhite else 7-self.letterToNum(moveText[2])
+                
+            
+            # elif ord(moveText[0]) <= 57: # number, rank
+            
+            # else: # letter, file
+            # return
+        
+        else:
+            endPosX = 8-int(moveText[1]) if self.__isPlayerWhite else int(moveText[1])-1
+            endPosY = self.letterToNum(moveText[0]) if self.__isPlayerWhite else 7-self.letterToNum(moveText[0])
+            print(str(endPosX)+" | "+str(endPosY))
+
+
     @staticmethod
     def numToLetter(num):
         """ Converts a number from 0-7 to a letter, A-H """
@@ -975,6 +1020,6 @@ base = Tk()
 base.title("Chess")
 
 
-board = Game(base, Game.DEFAULT_FEN, False)
+board = Game(base, Game.DEFAULT_FEN, FALSE)
 
 base.mainloop()
