@@ -91,7 +91,7 @@ class Game:
         self.__blackKingCastle = False
         self.__whiteQueenCastle = False
         self.__blackQueenCastle = False
-
+    
         self.__isPlayerWhite = asWhite
 
         self.__activeArrows = {}
@@ -112,21 +112,68 @@ class Game:
         self.__newMoves = []
         for move in moves:
             if not "." in move:
-                self.__newMoves.append(move)
-        print(self.__newMoves)
+                self.__newMoves.append(move.replace("'", ""))
+        # print(self.__newMoves)
 
         self.__pgnMemory = []
         self.__pgnIndex = 0
 
     def __advancePGN(self, event):
+        # print("Current index: "+str(self.__pgnIndex))
+
+        # Board position needs to be saved
+        # Every FEN field needs to be saved
+        # Board history and if the game is active needs to be recorded
+        self.__pgnMemory.append([copy.deepcopy(self.__textBoard),
+                                self.__isWhite,
+                                self.__moveCounter,
+                                self.__halfMoveCounter,
+                                copy.copy(self.__positionToEnPassant),
+                                self.__whiteKingCastle,
+                                self.__blackKingCastle,
+                                self.__whiteQueenCastle,
+                                self.__blackQueenCastle,
+                                copy.deepcopy(self.__boardHistory),
+                                self.__isGameActive,
+                                self.__whiteText.get(),
+                                self.__blackText.get(),
+                                self.__moveText.get()                                
+                                ]
+        )
         self.pushMove(self.__newMoves[self.__pgnIndex])
         
         self.__pgnIndex += 1
     
     def __backtrackPGN(self, event):
-        # self.pushMove(self.__text[self.__pgnIndex])
-        self.__pgnIndex += -1
+        newState = copy.deepcopy(self.__pgnMemory.pop())
+        newBoard = newState.pop(0)
+        for row in range(self.BOARD_LEN):
+            for col in range(self.BOARD_LEN):
+                if not newBoard[row][col] == self.__textBoard[row][col]:
+                    coordinatePair = [row,col]
+                    self.__imageBoard[row][col] =self.__getPieceFromText(newBoard[row][col])
+                    self.__recordBoard[row][col] = self.__canvas.create_image(
+                        getCanvasX(coordinatePair), 
+                        getCanvasY(coordinatePair), 
+                        image = self.__imageBoard[row][col], 
+                        anchor = NW
+                    )
+        self.__textBoard = copy.deepcopy(newBoard)
+        self.__pgnIndex -= 1
 
+        self.__isWhite = newState.pop(0)
+        self.__moveCounter = newState.pop(0)
+        self.__halfMoveCounter = newState.pop(0)
+        self.__positionToEnPassant = newState.pop(0)
+        self.__whiteKingCastle = newState.pop(0)
+        self.__blackKingCastle = newState.pop(0)
+        self.__whiteQueenCastle = newState.pop(0)
+        self.__blackQueenCastle = newState.pop(0)
+        self.__boardHistory = newState.pop(0)
+        self.__isGameActive = newState.pop(0)
+        self.__whiteText.set(newState.pop(0))
+        self.__blackText.set(newState.pop(0))
+        self.__moveText.set(newState.pop(0))
     def __drawPieces(self):
         """ Draws the pieces when ran after readFEN or defaultBoard """
 
@@ -1116,12 +1163,6 @@ board = Game(base, Game.DEFAULT_FEN, True)
 
 
 
-board.pushMove("e4")
-board.pushMove("e5")
-board.pushMove("Nf3")
-board.pushMove("Nc6")
-board.pushMove("Bc4")
-board.pushMove("Bc5")
 
 # board = Game(base, "k7/8/8/8/5Q2/8/3Q1Q2/K7 w - - 0 1")
 # board = Game(base, "rnbqkbnr/pp3ppp/3p4/2p1p3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4")
