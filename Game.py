@@ -102,21 +102,21 @@ class Game:
         
         self.__drawPieces()
 
-        sting = ""
-        with open("test.txt", "rb") as f:
-            sting = f.read()
-        # print(sting)
-        sting = str(sting)
-        sting = sting.replace(".", ". ")
-        moves = sting.split(" ")
+        # sting = ""
+        # with open("test.txt", "rb") as f:
+        #     sting = f.read()
+        # # print(sting)
+        # sting = str(sting)
+        # sting = sting.replace(".", ". ")
+        # moves = sting.split(" ")
         self.__newMoves = []
-        for move in moves:
-            if not "." in move:
-                self.__newMoves.append(move.replace("'", ""))
+        # for move in moves:
+        #     if not "." in move:
+        #         self.__newMoves.append(move.replace("'", ""))
         # print(self.__newMoves)
 
         self.__pgnMemory = []
-        self.__pgnIndex = 0
+        self.__pgnIndex = -1
 
     def __advancePGN(self, event):
         # print("Current index: "+str(self.__pgnIndex))
@@ -145,7 +145,7 @@ class Game:
         self.__pgnIndex += 1
     
     def __backtrackPGN(self, event):
-        newState = copy.deepcopy(self.__pgnMemory.pop())
+        newState = copy.deepcopy(self.__pgnMemory[self.__pgnIndex])
         newBoard = newState.pop(0)
         for row in range(self.BOARD_LEN):
             for col in range(self.BOARD_LEN):
@@ -350,6 +350,27 @@ class Game:
                 self.__rightClickEvent(None)
 
     def __endMove(self, finalX, finalY):
+        # Board position needs to be saved
+        # Every FEN field needs to be saved
+        # Board history and if the game is active needs to be recorded
+        self.__pgnMemory.append([copy.deepcopy(self.__textBoard),
+                                self.__isWhite,
+                                self.__moveCounter,
+                                self.__halfMoveCounter,
+                                copy.copy(self.__positionToEnPassant),
+                                self.__whiteKingCastle,
+                                self.__blackKingCastle,
+                                self.__whiteQueenCastle,
+                                self.__blackQueenCastle,
+                                copy.deepcopy(self.__boardHistory),
+                                self.__isGameActive,
+                                self.__whiteText.get(),
+                                self.__blackText.get(),
+                                self.__moveText.get()                                
+                                ]
+        )
+        self.__pgnIndex += 1
+
         # Records the piece being moved
         moveText = self.__moveToBasicAN(self.__originalPosition,
                                         [finalX, finalY])
@@ -466,10 +487,11 @@ class Game:
         # Promotion updates
         if finalX in [0, 7] and self.__activePieceText.upper() == 'P':
             initalText = self.__activePieceText
-            self.__promotionPopup(deltaY)
+            self.__promotionPopup(finalY)
             while len(self.__promotionText) == 0:
                 for button in self.__promotionButtons:
                     button.update()
+
             self.__canvas.delete(self.__testWindow)
 
             # Needs to reassign because of mixing between canvas and
@@ -678,8 +700,7 @@ class Game:
         if self.__isWhite ^ self.__isPlayerWhite:
             promotionList.reverse()
             y_pixel = self.BOX_LEN * 4
-        x_pixel = self.BOX_LEN*y_index
-        
+        x_pixel = self.BOX_LEN * y_index
         for i in range(4):
             self.__promotionImages.append(self.__getPieceFromText(promotionList[i]))
             self.__promotionButtons.append(
@@ -1160,11 +1181,6 @@ base.title("Chess")
 
 
 board = Game(base, Game.DEFAULT_FEN, True)
-
-
-
-
-# board = Game(base, "k7/8/8/8/5Q2/8/3Q1Q2/K7 w - - 0 1")
 # board = Game(base, "rnbqkbnr/pp3ppp/3p4/2p1p3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4")
 
 # board.pushMove("e2e4")
