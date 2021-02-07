@@ -5,6 +5,7 @@ from Chessboard import Chessboard
 from tkinter import *
 from Coordinate import *
 from playsound import playsound
+import time
 
 class Game:
     BROWN = "#B58863"
@@ -65,6 +66,8 @@ class Game:
         self.__base.bind('<ButtonRelease-1>', self.__deselectPiece)
         self.__base.bind('<Button-3>', self.__rightClickEvent)
         self.__base.bind('<ButtonRelease-3>', self.__finishShape)
+        self.__base.bind('<Right>', self.__advancePGN)
+        self.__base.bind('<Left>', self.__backtrackPGN)
 
         # Trackers for when pieces are moved
         self.__activePieceText = '-'
@@ -88,7 +91,7 @@ class Game:
         self.__blackKingCastle = False
         self.__whiteQueenCastle = False
         self.__blackQueenCastle = False
-
+    
         self.__isPlayerWhite = asWhite
 
         self.__activeArrows = {}
@@ -99,6 +102,78 @@ class Game:
         
         self.__drawPieces()
 
+        # sting = ""
+        # with open("test.txt", "rb") as f:
+        #     sting = f.read()
+        # # print(sting)
+        # sting = str(sting)
+        # sting = sting.replace(".", ". ")
+        # moves = sting.split(" ")
+        self.__newMoves = []
+        # for move in moves:
+        #     if not "." in move:
+        #         self.__newMoves.append(move.replace("'", ""))
+        # print(self.__newMoves)
+
+        self.__pgnMemory = []
+        self.__pgnIndex = -1
+
+    def __advancePGN(self, event):
+        # print("Current index: "+str(self.__pgnIndex))
+
+        # Board position needs to be saved
+        # Every FEN field needs to be saved
+        # Board history and if the game is active needs to be recorded
+        self.__pgnMemory.append([copy.deepcopy(self.__textBoard),
+                                self.__isWhite,
+                                self.__moveCounter,
+                                self.__halfMoveCounter,
+                                copy.copy(self.__positionToEnPassant),
+                                self.__whiteKingCastle,
+                                self.__blackKingCastle,
+                                self.__whiteQueenCastle,
+                                self.__blackQueenCastle,
+                                copy.deepcopy(self.__boardHistory),
+                                self.__isGameActive,
+                                self.__whiteText.get(),
+                                self.__blackText.get(),
+                                self.__moveText.get()                                
+                                ]
+        )
+        self.pushMove(self.__newMoves[self.__pgnIndex])
+        
+        self.__pgnIndex += 1
+    
+    def __backtrackPGN(self, event):
+        newState = copy.deepcopy(self.__pgnMemory[self.__pgnIndex])
+        newBoard = newState.pop(0)
+        for row in range(self.BOARD_LEN):
+            for col in range(self.BOARD_LEN):
+                if not newBoard[row][col] == self.__textBoard[row][col]:
+                    coordinatePair = [row,col]
+                    self.__imageBoard[row][col] =self.__getPieceFromText(newBoard[row][col])
+                    self.__recordBoard[row][col] = self.__canvas.create_image(
+                        getCanvasX(coordinatePair), 
+                        getCanvasY(coordinatePair), 
+                        image = self.__imageBoard[row][col], 
+                        anchor = NW
+                    )
+        self.__textBoard = copy.deepcopy(newBoard)
+        self.__pgnIndex -= 1
+
+        self.__isWhite = newState.pop(0)
+        self.__moveCounter = newState.pop(0)
+        self.__halfMoveCounter = newState.pop(0)
+        self.__positionToEnPassant = newState.pop(0)
+        self.__whiteKingCastle = newState.pop(0)
+        self.__blackKingCastle = newState.pop(0)
+        self.__whiteQueenCastle = newState.pop(0)
+        self.__blackQueenCastle = newState.pop(0)
+        self.__boardHistory = newState.pop(0)
+        self.__isGameActive = newState.pop(0)
+        self.__whiteText.set(newState.pop(0))
+        self.__blackText.set(newState.pop(0))
+        self.__moveText.set(newState.pop(0))
     def __drawPieces(self):
         """ Draws the pieces when ran after readFEN or defaultBoard """
 
@@ -210,13 +285,7 @@ class Game:
             return
 
         # Resets the arrows/highlighted boxes
-        for arrow in list(self.__activeArrows.values()):
-            self.__canvas.delete(arrow)
-        for circle in list(self.__activeCircles.values()):
-            self.__canvas.delete(circle)
-        self.__activeArrows = {}
-        self.__activeCircles = {}
-        self.__originalArrowCoordinate = ()
+        self.__resetShapes()
 
         # Gets the box that the mouse is in
         x_index = getBoardX(event)
@@ -281,6 +350,31 @@ class Game:
                 self.__rightClickEvent(None)
 
     def __endMove(self, finalX, finalY):
+        # Board position needs to be saved
+        # Every FEN field needs to be saved
+        # Board history and if the game is active needs to be recorded
+        self.__pgnMemory.append([copy.deepcopy(self.__textBoard),
+                                self.__isWhite,
+                                self.__moveCounter,
+                                self.__halfMoveCounter,
+                                copy.copy(self.__positionToEnPassant),
+                                self.__whiteKingCastle,
+                                self.__blackKingCastle,
+                                self.__whiteQueenCastle,
+                                self.__blackQueenCastle,
+                                copy.deepcopy(self.__boardHistory),
+                                self.__isGameActive,
+                                self.__whiteText.get(),
+                                self.__blackText.get(),
+                                self.__moveText.get()                                
+                                ]
+        )
+        self.__pgnIndex += 1
+
+        # Records the piece being moved
+        moveText = self.__moveToBasicAN(self.__originalPosition,
+                                        [finalX, finalY])
+
         # Calculates the distances being moved by a piece
         # deltaX represents horizontal move, and deltaY represents vertical
         deltaX = finalX - self.__originalPosition[X_INDEX]
@@ -300,27 +394,27 @@ class Game:
         # Centers the object onto the square it landed on
         self.__canvas.moveto(
             self.__activePieceRecord,
-            getCanvasX([finalX, deltaY]),
-            getCanvasY([finalX, deltaY]))
+            getCanvasX([finalX, finalY]),
+            getCanvasY([finalX, finalY]))
 
         # Removes old piece images on capture
-        self.__canvas.delete(self.__recordBoard[finalX][deltaY])
+        self.__canvas.delete(self.__recordBoard[finalX][finalY])
         # Removes the pawn during an en passant
         if (abs(deltaX) == 1 
                 and abs(deltaY) == 1 
-                and [finalX, deltaY] == self.__positionToEnPassant):
+                and [finalX, finalY] == self.__positionToEnPassant):
             pawn_x_index = finalX + (-1 if self.__isWhite ^ self.__isPlayerWhite else 1)
             
             self.__canvas.delete(self.__recordBoard
-                [finalX+ (1 if self.__isWhite else -1)][deltaY])
+                [finalX+ (1 if self.__isWhite else -1)][finalY])
             self.__recordBoard[pawn_x_index][deltaY] = None
             self.__textBoard[pawn_x_index][deltaY] = '-'
             self.__imageBoard[pawn_x_index][deltaY] = None
             
         # Records the new position
-        self.__recordBoard[finalX][deltaY] = copy.deepcopy(
+        self.__recordBoard[finalX][finalY] = copy.deepcopy(
             self.__activePieceRecord)
-        self.__textBoard[finalX][deltaY] = self.__activePieceText[:]
+        self.__textBoard[finalX][finalY] = self.__activePieceText[:]
 
         # Remove the old position of the piece
         self.__recordBoard[self.__originalPosition[0]][
@@ -329,7 +423,7 @@ class Game:
             self.__originalPosition[1]] = '-'
         
         # Copies reference of image and deletes the oriignal
-        self.__imageBoard[finalX][deltaY] = self.__activePieceImage
+        self.__imageBoard[finalX][finalY] = self.__activePieceImage
         del self.__imageBoard[self.__originalPosition[0]][
             self.__originalPosition[1]]
         self.__imageBoard[self.__originalPosition[X_INDEX]].insert(
@@ -393,24 +487,25 @@ class Game:
         # Promotion updates
         if finalX in [0, 7] and self.__activePieceText.upper() == 'P':
             initalText = self.__activePieceText
-            self.__promotionPopup(deltaY)
+            self.__promotionPopup(finalY)
             while len(self.__promotionText) == 0:
                 for button in self.__promotionButtons:
                     button.update()
+
             self.__canvas.delete(self.__testWindow)
 
             # Needs to reassign because of mixing between canvas and
             # buttons
             self.__activePieceText = initalText
     
-            self.__textBoard[finalX][deltaY] = (
+            self.__textBoard[finalX][finalY] = (
                 self.__promotionText)
-            self.__imageBoard[finalX][deltaY] = self.\
+            self.__imageBoard[finalX][finalY] = self.\
                 __getPieceFromText(self.__promotionText)
-            self.__recordBoard[finalX][deltaY] = self.\
-                __canvas.create_image(getCanvasX([finalX,deltaY]),
-                getCanvasY([finalX,deltaY]),  
-                image = self.__imageBoard[finalX][deltaY],
+            self.__recordBoard[finalX][finalY] = self.\
+                __canvas.create_image(getCanvasX([finalX,finalY]),
+                getCanvasY([finalX,finalY]),  
+                image = self.__imageBoard[finalX][finalY],
                 anchor = NW)
 
 
@@ -426,10 +521,6 @@ class Game:
         
         
         gameState = self.__checkGameState()
-
-        # Records the piece being moved
-        moveText = self.__moveToBasicAN(self.__originalPosition,
-                                        [finalX, deltaY])
         
         # Adds the last bit of the AN
         if finalX in [0,7] and self.__activePieceText.upper() == 'P':
@@ -581,6 +672,15 @@ class Game:
 
             self.__originalArrowCoordinate = ()
 
+    def __resetShapes(self):
+        for arrow in list(self.__activeArrows.values()):
+            self.__canvas.delete(arrow)
+        for circle in list(self.__activeCircles.values()):
+            self.__canvas.delete(circle)
+        self.__activeArrows = {}
+        self.__activeCircles = {}
+        self.__originalArrowCoordinate = ()
+
 
     def __promotionPopup(self, y_index):
         x_pixel = 0
@@ -600,8 +700,7 @@ class Game:
         if self.__isWhite ^ self.__isPlayerWhite:
             promotionList.reverse()
             y_pixel = self.BOX_LEN * 4
-        x_pixel = self.BOX_LEN*y_index
-        
+        x_pixel = self.BOX_LEN * y_index
         for i in range(4):
             self.__promotionImages.append(self.__getPieceFromText(promotionList[i]))
             self.__promotionButtons.append(
@@ -914,12 +1013,14 @@ class Game:
                 deltaY < 0 and not self.__isPlayerWhite):
                 return "O-O"
             return "O-O-O"
-        if not pieceText.upper() == 'P':
-            # Checking for the row number, mnumber
+        if pieceText.upper() in ["B", "R", "Q", "N"]:
+            # Checking for the row number, letter
             for i in range(self.BOARD_LEN):
                 #Exclude current column
                 if not i == oldPosition[Y_INDEX]:
                     if self.__textBoard[oldPosition[X_INDEX]][i] == pieceText:
+                        # If it finds a legal move that can be done on
+                        # another file, then the letter must be appended
                         if self.__isLegalMove(pieceText, 
                                               [oldPosition[X_INDEX], i],
                                               newPosition,
@@ -931,7 +1032,10 @@ class Game:
             # Checking for the row number,letter
             for i in range(self.BOARD_LEN):
                 if not i == oldPosition[X_INDEX]:
+                    # Exclude current row
                     if self.__textBoard[i][oldPosition[Y_INDEX]] == pieceText:
+                        # If it finds a legal move that can be done on
+                        # another rank, then the number must be appended
                         if self.__isLegalMove(pieceText, 
                                               [i, oldPosition[Y_INDEX]], 
                                               newPosition, 
@@ -939,6 +1043,20 @@ class Game:
                             letter = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
                             moveString += letter
                             break
+            
+            # Manual addition to knight's ambiguous moves, defaults to
+            # file if another knight can move to the same spot but is
+            # not on the same file/rank to begin with
+            if pieceText.upper() == "N" and len(moveString) == 1:
+                for row in range(self.BOARD_LEN):
+                    for col in range(self.BOARD_LEN):
+                        if not row == oldPosition[X_INDEX] and not col == oldPosition[Y_INDEX]:
+                            if self.__textBoard[row][col] == pieceText:
+                                if self.__isLegalMove(pieceText, [row,col], newPosition, self.__textBoard):
+                                    num = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
+                                    moveString += self.numToLetter(num)
+                                    break
+
 
         # Capturing with pawns
         if (pieceText.upper() == "P" and 
@@ -958,40 +1076,82 @@ class Game:
         return moveString
 
     def pushMove(self, moveText):
-        # For reference, 0,0 is A8, 7,7 is H1
+
 
         # Strips the move of special characters
         moveText = moveText.replace("#","" ).replace("+", "").replace("x", "")
 
-        pieceText = "P"
+        # Converts castling text into a king move
+        if "O-" in moveText:
+            newMoveText = "K"
+            if self.__isWhite:
+                newMoveText += "g" if moveText == "O-O" else "c"
+                newMoveText += "1"
+            else:
+                newMoveText += "g" if moveText == "O-O" else "c"
+                newMoveText += "8"            
 
+            moveText = newMoveText
+
+
+        pieceText = "P"
         if moveText[0].isupper():
             pieceText = moveText[0]
             moveText = moveText[1:]
-        
         if not self.__isWhite:
             pieceText = pieceText.lower()
 
+        self.__activePieceText = pieceText
+
+        endPosX = 8-int(moveText[-1])
+        endPosY = self.letterToNum(moveText[-2])
+        if not self.__isPlayerWhite:
+            endPosX = 7-endPosX
+            endPosY = 7-endPosY
         
         # if rank amd/or file was specified
         if len(moveText) > 2:
             if len(moveText) == 4: #full AN
-                startPosX = 8-int(moveText[1]) if self.__isPlayerWhite else int(moveText[1])-1
-                startPosY = self.letterToNum(moveText[0]) if self.__isPlayerWhite else 7-self.letterToNum(moveText[0])
-                endPosX = 8-int(moveText[3]) if self.__isPlayerWhite else int(moveText[3])-1
-                endPosY = self.letterToNum(moveText[2]) if self.__isPlayerWhite else 7-self.letterToNum(moveText[2])
+                startPosX = 8-int(moveText[1])
+                startPosY = self.letterToNum(moveText[0])
+                if not self.__isPlayerWhite:
+                    startPosX = int(moveText[1])-1
+                    startPosY = 7-self.letterToNum(moveText[0])
                 
             
-            # elif ord(moveText[0]) <= 57: # number, rank
-            
-            # else: # letter, file
-            # return
-        
-        else:
-            endPosX = 8-int(moveText[1]) if self.__isPlayerWhite else int(moveText[1])-1
-            endPosY = self.letterToNum(moveText[0]) if self.__isPlayerWhite else 7-self.letterToNum(moveText[0])
-            print(str(endPosX)+" | "+str(endPosY))
+            elif ord(moveText[0]) <= 57: # number, rank, check across y
+                startPosX = 8-int(moveText[0])
+                if not self.__isPlayerWhite:
+                    startPosX = int(moveText[0])-1
+                for i in range(self.BOARD_LEN):
+                    if self.__textBoard[startPosX][i] == pieceText:
+                        if self.__isLegalMove(pieceText, [startPosX, i], [endPosX, endPosY], self.__textBoard):
+                            startPosY = i
 
+            else : # letter, file, check across x
+                startPosY = self.letterToNum(moveText[0])
+                if not self.__isPlayerWhite:
+                    startPosY = 7-self.letterToNum(moveText[0])
+                for i in range(8):
+                    if self.__textBoard[i][startPosY] == pieceText:
+                        if self.__isLegalMove(pieceText, [i, startPosY], [endPosX, endPosY], self.__textBoard):
+                            startPosX = i         
+        else:
+            for row in range(self.BOARD_LEN):
+                for col in range(self.BOARD_LEN):
+                    if self.__textBoard[row][col] == pieceText:
+                        if self.__isLegalMove(pieceText, [row, col], [endPosX, endPosY], self.__textBoard):
+                            startPosX = row
+                            startPosY = col
+
+        self.__originalPosition = [startPosX, startPosY]
+
+        # Assigns the active piece to the piece that was clicked
+        self.__activePieceRecord = copy.deepcopy(self.__recordBoard[startPosX]
+                                                                    [startPosY])
+        self.__activePieceImage = self.__imageBoard[startPosX][startPosY]                
+        
+        self.__endMove(endPosX, endPosY)
 
     @staticmethod
     def numToLetter(num):
@@ -1020,6 +1180,12 @@ base = Tk()
 base.title("Chess")
 
 
-board = Game(base, Game.DEFAULT_FEN, FALSE)
+board = Game(base, Game.DEFAULT_FEN, True)
+# board = Game(base, "rnbqkbnr/pp3ppp/3p4/2p1p3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4")
+
+# board.pushMove("e2e4")
+# board.pushMove("Ng8f6")
+
+# board.pushMove("Q4d4")
 
 base.mainloop()
