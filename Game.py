@@ -68,6 +68,7 @@ class Game:
         self.__base.bind('<ButtonRelease-3>', self.__finishShape)
         self.__base.bind('<Right>', self.__advancePGN)
         self.__base.bind('<Left>', self.__backtrackPGN)
+        self.__base.bind("<space>", self.__outputFEN)
 
         # Trackers for when pieces are moved
         self.__activePieceText = '-'
@@ -244,6 +245,27 @@ class Game:
 
         self.__halfMoveCounter = int(halfMoveCount)
         self.__moveCounter = int(fullMoveCount)
+    
+    def __outputFEN(self, event):
+        positionString = ""
+
+        for row in range(self.BOARD_LEN):
+            dashCount = 0
+            for col in range(self.BOARD_LEN):
+                currentChar = self.__textBoard[row][col]
+                if currentChar == "-":
+                    dashCount += 1
+                elif not dashCount == 0:
+                    positionString += str(dashCount) + currentChar
+                    dashCount = 0
+                else:
+                    positionString += currentChar
+                    dashCount = 0
+            if not dashCount == 0:
+                positionString += str(dashCount)
+            if not row == 7:
+                positionString += "/"
+        print(positionString)
 
     def __createImages(self):
         # Finds the images that is required to display
