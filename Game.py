@@ -461,7 +461,47 @@ class Game:
             self.__recordBoard[pawn_x_index][deltaY] = None
             self.__textBoard[pawn_x_index][deltaY] = '-'
             self.__imageBoard[pawn_x_index][deltaY] = None
-            
+
+#------------------------------------------------------------------------------
+# NOTE: Need to make a theoryboard to check if you are able to take
+#       en passant. this sucks
+
+        # Records when the oponnent can take en passant
+        self.__positionToEnPassant = None
+        if self.__activePieceText.upper() == 'P':
+            if abs(deltaX) == 2:
+                # when the player color is the same as the person getting 
+                # the turn
+                # pieceText = self.__textBoard[self.__originalPosition[X_INDEX]][self.__originalPosition[Y_INDEX]]
+                # look up (x-1) and left/right (y+/-1)
+                
+                # Check if there pawns next to the moving pawn's spot
+                leftSpotPiece = "-"
+                rightSpotPiece = "-"
+                if not finalY == 0:
+                    leftSpotPiece = self.__textBoard[finalX][finalY-1]                    
+                if not finalY == 7:
+                    rightSpotPiece = self.__textBoard[finalX][finalY+1]
+                leftAbleToTake = False
+                rightAbleToTake = False
+                theoryBoard = copy.deepcopy(self.__textBoard)
+                theoryBoard[self.__originalPosition[X_INDEX]][self.__originalPosition[Y_INDEX]] = "-"
+                theoryBoard[self.__originalPosition[X_INDEX] - int(deltaX/2)][self.__originalPosition[Y_INDEX]] = self.__textBoard[self.__originalPosition[X_INDEX]][ self.__originalPosition[Y_INDEX]]
+                if leftSpotPiece.upper() == "P":
+                    # NOTE: Performing an XNOR operation, i.e. seeing if the
+                    #       two things equal each other's condition
+                    if not (leftSpotPiece.isupper() ^ (not self.__isWhite)):
+                        if self.__isLegalMove(leftSpotPiece, [finalX, finalY-1], [self.__originalPosition[X_INDEX] - int(deltaX/2),self.__originalPosition[Y_INDEX]], theoryBoard, color = not self.__isWhite):
+                            leftAbleToTake = True
+                if rightSpotPiece.upper() == "P":
+                    if not (rightSpotPiece.isupper() ^ (not self.__isWhite)):
+                        if self.__isLegalMove(rightSpotPiece, [finalX, finalY+1], [self.__originalPosition[X_INDEX] - int(deltaX/2),self.__originalPosition[Y_INDEX]], theoryBoard, color = not self.__isWhite):
+                            rightAbleToTake = True                        
+                if leftAbleToTake or rightAbleToTake:
+                    self.__positionToEnPassant = [
+                        self.__originalPosition[X_INDEX] - int(deltaX/2), 
+                        self.__originalPosition[self.Y_INDEX]]
+
         # Records the new position
         self.__recordBoard[finalX][finalY] = copy.deepcopy(
             self.__activePieceRecord)
@@ -554,24 +594,10 @@ class Game:
             self.__imageBoard[finalX][finalY] = self.\
                 __getPieceFromText(self.__promotionText)
             self.__recordBoard[finalX][finalY] = self.\
-                __canvas.create_image(getCanvasX([finalX,finalY]),
+                __canvas.create_image(getCanvasX([finalX,finalY]),  
                 getCanvasY([finalX,finalY]),  
                 image = self.__imageBoard[finalX][finalY],
                 anchor = NW)
-
-#------------------------------------------------------------------------------
-# NOTE: Need to make a theoryboard to check if you are able to take
-#       en passant. this sucks
-
-        # Records when the oponnent can take en passant
-        self.__positionToEnPassant = None
-        if self.__activePieceText.upper() == 'P':
-            if abs(self.__originalPosition[self.X_INDEX] 
-                    - finalX) == 2:
-                self.__positionToEnPassant = [
-                    (1 if (self.__isWhite ^ self.__isPlayerWhite) else -1) + \
-                    self.__originalPosition[self.X_INDEX], 
-                    self.__originalPosition[self.Y_INDEX]]
         
 
         gameState = self.__checkGameState()
@@ -1234,8 +1260,8 @@ base = Tk()
 base.title("Chess")
 
 
-board = Game(base, Game.DEFAULT_FEN, True)
-# board = Game(base, "rnbqkbnr/pp3ppp/3p4/2p1p3/3PP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4")
+# board = Game(base, Game.DEFAULT_FEN, True)
+board = Game(base, "rnbqkbnr/pppppppp/8/4P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
 
 # board.pushMove("e2e4")
 # board.pushMove("Ng8f6")
