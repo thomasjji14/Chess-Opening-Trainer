@@ -247,8 +247,9 @@ class Game:
         self.__moveCounter = int(fullMoveCount)
     
     def __outputFEN(self, event):
+        fenString = ""
+        
         positionString = ""
-
         for row in range(self.BOARD_LEN):
             dashCount = 0
             for col in range(self.BOARD_LEN):
@@ -265,7 +266,35 @@ class Game:
                 positionString += str(dashCount)
             if not row == 7:
                 positionString += "/"
-        print(positionString)
+        
+        fenString += positionString
+        fenString += " "
+
+        fenString += "w" if self.__isWhite else "b"
+        fenString += " "
+
+        if self.__whiteKingCastle:
+            fenString += "K"
+        if self.__whiteQueenCastle:
+            fenString += "Q"
+        if self.__blackKingCastle:
+            fenString += "k"
+        if self.__blackQueenCastle:
+            fenString += "q"
+        fenString += " "
+        # Add new position to the text
+        if not self.__positionToEnPassant == None:
+            fenString += self.numToLetter(self.__positionToEnPassant[Y_INDEX] if self.__isPlayerWhite else 7-self.__positionToEnPassant[Y_INDEX])
+            fenString += str(8 - self.__positionToEnPassant[X_INDEX] if self.__isPlayerWhite else 1+self.__positionToEnPassant[X_INDEX])
+        else:
+            fenString += "-"
+        fenString += " "
+
+        fenString += str(self.__halfMoveCounter)
+        fenString += " "
+
+        fenString += str(self.__moveCounter)
+        print(fenString)        
 
     def __createImages(self):
         # Finds the images that is required to display
@@ -530,6 +559,9 @@ class Game:
                 image = self.__imageBoard[finalX][finalY],
                 anchor = NW)
 
+#------------------------------------------------------------------------------
+# NOTE: Need to make a theoryboard to check if you are able to take
+#       en passant. this sucks
 
         # Records when the oponnent can take en passant
         self.__positionToEnPassant = None
@@ -541,7 +573,7 @@ class Game:
                     self.__originalPosition[self.X_INDEX], 
                     self.__originalPosition[self.Y_INDEX]]
         
-        
+
         gameState = self.__checkGameState()
         
         # Adds the last bit of the AN
