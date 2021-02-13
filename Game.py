@@ -2,6 +2,7 @@ import copy
 import sys
 import os
 from Chessboard import Chessboard
+import Engine
 from tkinter import *
 from Coordinate import *
 from playsound import playsound
@@ -69,6 +70,7 @@ class Game:
         self.__base.bind('<Right>', self.__advancePGN)
         self.__base.bind('<Left>', self.__backtrackPGN)
         self.__base.bind("<space>", self.__outputFEN)
+        self.__base.bind("<Up>", self.__printPGN)
 
         # Trackers for when pieces are moved
         self.__activePieceText = '-'
@@ -245,7 +247,12 @@ class Game:
 
         self.__halfMoveCounter = int(halfMoveCount)
         self.__moveCounter = int(fullMoveCount)
-    
+    def __printPGN(self, event):
+        whiteList = self.__whiteText.get().split("\n")
+        blackList = self.__blackText.get().split("\n")
+        for i in range(len(whiteList)):
+            print(str(i+1)+"."+whiteList[i]+" "+blackList[i], end = " ")
+            
     def __outputFEN(self, event):
         fenString = ""
         
@@ -294,7 +301,14 @@ class Game:
         fenString += " "
 
         fenString += str(self.__moveCounter)
-        print(fenString)        
+        # # print(fenString)        
+        # print("Engine started: ")
+        engineInstance = Engine.Engine()
+        # print("Evaluating: ")
+        moveEval = engineInstance.evaluate_at_position(fenString, depth = 2)
+        # print(moveEval[0])
+        self.pushMove(moveEval[0], True)
+
 
     def __createImages(self):
         # Finds the images that is required to display
@@ -462,20 +476,9 @@ class Game:
             self.__textBoard[pawn_x_index][deltaY] = '-'
             self.__imageBoard[pawn_x_index][deltaY] = None
 
-#------------------------------------------------------------------------------
-# NOTE: Need to make a theoryboard to check if you are able to take
-#       en passant. this sucks
-
-        # Records when the oponnent can take en passant
         self.__positionToEnPassant = None
         if self.__activePieceText.upper() == 'P':
             if abs(deltaX) == 2:
-                # when the player color is the same as the person getting 
-                # the turn
-                # pieceText = self.__textBoard[self.__originalPosition[X_INDEX]][self.__originalPosition[Y_INDEX]]
-                # look up (x-1) and left/right (y+/-1)
-                
-                # Check if there pawns next to the moving pawn's spot
                 leftSpotPiece = "-"
                 rightSpotPiece = "-"
                 if not finalY == 0:
@@ -680,6 +683,9 @@ class Game:
             path = "sfx/Capture.mp3"
         
         playsound(self.resource_path(path), False)
+
+        if not self.__isWhite:
+            self.__outputFEN(None)
 
 
     def __rightClickEvent(self, event):
@@ -1094,48 +1100,78 @@ class Game:
                 return "O-O"
             return "O-O-O"
         if pieceText.upper() in ["B", "R", "Q", "N"]:
-            # Checking for the row number, letter
-            for i in range(self.BOARD_LEN):
-                #Exclude current column
-                if not i == oldPosition[Y_INDEX]:
-                    if self.__textBoard[oldPosition[X_INDEX]][i] == pieceText:
-                        # If it finds a legal move that can be done on
-                        # another file, then the letter must be appended
-                        if self.__isLegalMove(pieceText, 
-                                              [oldPosition[X_INDEX], i],
-                                              newPosition,
-                                              self.__textBoard):
-                            num = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
-                            moveString += self.numToLetter(num)
-                            break
+            # # Checking for the row number, letter
+            # for i in range(self.BOARD_LEN):
+            #     #Exclude current column
+            #     if not i == oldPosition[Y_INDEX]:
+            #         if self.__textBoard[oldPosition[X_INDEX]][i] == pieceText:
+            #             # If it finds a legal move that can be done on
+            #             # another file, then the letter must be appended
+            #             if self.__isLegalMove(pieceText, 
+            #                                   [newPosition[X_INDEX], i],
+            #                                   newPosition,
+            #                                   self.__textBoard):
+            #                 num = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
+            #                 moveString += self.numToLetter(num)
+            #                 break
 
-            # Checking for the row number,letter
-            for i in range(self.BOARD_LEN):
-                if not i == oldPosition[X_INDEX]:
-                    # Exclude current row
-                    if self.__textBoard[i][oldPosition[Y_INDEX]] == pieceText:
-                        # If it finds a legal move that can be done on
-                        # another rank, then the number must be appended
-                        if self.__isLegalMove(pieceText, 
-                                              [i, oldPosition[Y_INDEX]], 
-                                              newPosition, 
-                                              self.__textBoard):
-                            letter = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
-                            moveString += letter
-                            break
+            # # Checking for the row number,letter
+            # for i in range(self.BOARD_LEN):
+            #     if not i == oldPosition[X_INDEX]:
+            #         # Exclude current row
+            #         if self.__textBoard[i][oldPosition[Y_INDEX]] == pieceText:
+            #             # If it finds a legal move that can be done on
+            #             # another rank, then the number must be appended
+            #             if self.__isLegalMove(pieceText, 
+            #                                   [i, newPosition[Y_INDEX]], 
+            #                                   newPosition, 
+            #                                   self.__textBoard):
+            #                 letter = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
+            #                 moveString += letter
+            #                 break
             
-            # Manual addition to knight's ambiguous moves, defaults to
-            # file if another knight can move to the same spot but is
-            # not on the same file/rank to begin with
-            if pieceText.upper() == "N" and len(moveString) == 1:
-                for row in range(self.BOARD_LEN):
-                    for col in range(self.BOARD_LEN):
-                        if not row == oldPosition[X_INDEX] and not col == oldPosition[Y_INDEX]:
-                            if self.__textBoard[row][col] == pieceText:
-                                if self.__isLegalMove(pieceText, [row,col], newPosition, self.__textBoard):
-                                    num = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
-                                    moveString += self.numToLetter(num)
-                                    break
+            # Originally reserved for knight moves, but better for all
+            # Should default to file as a disambiguator if possible
+            # if pieceText.upper() in ["R", "N"] and len(moveString) == 1:
+            legalPositions = []
+            for row in range(self.BOARD_LEN):
+                for col in range(self.BOARD_LEN):
+                    if not (row == oldPosition[X_INDEX] and col == oldPosition[Y_INDEX]):
+                        if self.__textBoard[row][col] == pieceText:
+                            if self.__isLegalMove(pieceText, [row,col], newPosition, self.__textBoard):
+                                legalPositions.append([row, col])
+                                colNum = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
+            fileText = "" # LETTER
+            rankText = "" # NUMBER
+            # if len(legalPositions) != 0:
+            #     colNum = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
+            #     rowNum = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
+            #     for position in legalPositions:
+            #         if position[Y_INDEX] != oldPosition[Y_INDEX]:
+            #             fileText = self.numToLetter(colNum) 
+            #         else:
+            #             rankText = rowNum 
+            if len(legalPositions) != 0:
+                colNum = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
+                rowNum = (8-oldPosition[X_INDEX]) if self.__isPlayerWhite else (1+oldPosition[X_INDEX])
+                xPositions = [position[X_INDEX] for position in legalPositions]
+                yPositions = [position[Y_INDEX] for position in legalPositions]
+                sameRow = oldPosition[X_INDEX] in xPositions
+                sameCol = oldPosition[Y_INDEX] in yPositions
+
+                if not sameCol:
+                    fileText = self.numToLetter(colNum)
+                elif sameRow and sameCol:
+                    fileText = self.numToLetter(colNum)
+                    rankText = str(rowNum)                    
+                else:
+                    rankText = str(rowNum)
+
+
+            
+            
+            moveString += fileText + rankText
+                    
 
 
         # Capturing with pawns
@@ -1155,7 +1191,7 @@ class Game:
 
         return moveString
 
-    def pushMove(self, moveText):
+    def pushMove(self, moveText, engineFlag = False):
 
 
         # Strips the move of special characters
@@ -1172,7 +1208,7 @@ class Game:
                 newMoveText += "8"            
 
             moveText = newMoveText
-
+        moveText = moveText[0:4]
 
         pieceText = "P"
         if moveText[0].isupper():
@@ -1194,6 +1230,9 @@ class Game:
             if len(moveText) == 4: #full AN
                 startPosX = 8-int(moveText[1])
                 startPosY = self.letterToNum(moveText[0])
+                if engineFlag:
+                    pieceText = self.__textBoard[startPosX][startPosY]
+                    self.__activePieceText = pieceText
                 if not self.__isPlayerWhite:
                     startPosX = int(moveText[1])-1
                     startPosY = 7-self.letterToNum(moveText[0])
@@ -1260,12 +1299,6 @@ base = Tk()
 base.title("Chess")
 
 
-# board = Game(base, Game.DEFAULT_FEN, True)
-board = Game(base, "rnbqkbnr/pppppppp/8/4P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
-
-# board.pushMove("e2e4")
-# board.pushMove("Ng8f6")
-
-# board.pushMove("Q4d4")
+board = Game(base, Game.DEFAULT_FEN, True)
 
 base.mainloop()

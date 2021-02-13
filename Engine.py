@@ -1,13 +1,18 @@
-import subprocess, time
+import subprocess
+import os
+import time
+import sys
 
 class Engine():
     def __init__(self):
         self.__base = subprocess.Popen(
-            'sf.exe',
+            self.__resource_path('engine/sf.exe'),
+            shell = True,
             universal_newlines=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            bufsize=1,
+            stderr=subprocess.STDOUT,
+            bufsize=1
         )
 
     def evaluate_at_position(self, position, depth=18, lines=1):
@@ -40,9 +45,20 @@ class Engine():
         return bestMoves
     
     def __isReady(self):
-        self.__base.stdin.write('self.__isReady\n')
+        self.__base.stdin.write('isready\n')
         outtext = ""
         while not "readyok" in outtext:
             outtext = self.__base.stdout.readline()
-sf = Engine()
-print(sf.evaluate_at_position("r1bq2nr/pppp1kpp/8/2b1n3/4P3/8/PPPP1PPP/RNBQK2R w KQ - 0 6", depth = 30, lines = 3))
+
+    @staticmethod
+    def __resource_path(relative_path):
+        """ Get absolute path for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return os.path.join(base_path, relative_path)
+# sf = Engine()
+# print(sf.evaluate_at_position("r1bq2nr/pppp1kpp/8/2b1n3/4P3/8/PPPP1PPP/RNBQK2R w KQ - 0 6", depth = 30, lines = 3))
