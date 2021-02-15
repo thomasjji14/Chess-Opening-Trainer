@@ -248,10 +248,12 @@ class Game:
         self.__halfMoveCounter = int(halfMoveCount)
         self.__moveCounter = int(fullMoveCount)
     def __printPGN(self, event):
+        print("pgn: ", end = " ")
         whiteList = self.__whiteText.get().split("\n")
         blackList = self.__blackText.get().split("\n")
         for i in range(len(whiteList)):
             print(str(i+1)+"."+whiteList[i]+" "+blackList[i], end = " ")
+        print("\n")
             
     def __outputFEN(self, event):
         fenString = ""
@@ -305,7 +307,7 @@ class Game:
         # print("Engine started: ")
         engineInstance = Engine.Engine()
         # print("Evaluating: ")
-        moveEval = engineInstance.evaluate_at_position(fenString, depth = 2)
+        moveEval = engineInstance.evaluate_at_position(fenString, depth = 1)
         # print(moveEval[0])
         self.pushMove(moveEval[0], True)
 
@@ -414,7 +416,7 @@ class Game:
             else:
                 self.__rightClickEvent(None)
 
-    def __endMove(self, finalX, finalY):
+    def __endMove(self, finalX, finalY, promotionPiece = None):
         # Board position needs to be saved
         # Every FEN field needs to be saved
         # Board history and if the game is active needs to be recorded
@@ -580,18 +582,31 @@ class Game:
 
         # Promotion updates
         if finalX in [0, 7] and self.__activePieceText.upper() == 'P':
-            initalText = self.__activePieceText
-            self.__promotionPopup(finalY)
-            while len(self.__promotionText) == 0:
-                for button in self.__promotionButtons:
-                    button.update()
+            if promotionPiece is None:
+                initalText = self.__activePieceText
+                self.__promotionPopup(finalY)
+                while len(self.__promotionText) == 0:
+                    for button in self.__promotionButtons:
+                        button.update()
 
-            self.__canvas.delete(self.__testWindow)
+                self.__canvas.delete(self.__testWindow)
 
-            # Needs to reassign because of mixing between canvas and
-            # buttons
-            self.__activePieceText = initalText
-    
+                # Needs to reassign because of mixing between canvas and
+                # buttons
+                self.__activePieceText = initalText
+        
+                self.__textBoard[finalX][finalY] = (
+                    self.__promotionText)
+                self.__imageBoard[finalX][finalY] = self.\
+                    __getPieceFromText(self.__promotionText)
+                self.__recordBoard[finalX][finalY] = self.\
+                    __canvas.create_image(getCanvasX([finalX,finalY]),  
+                    getCanvasY([finalX,finalY]),  
+                    image = self.__imageBoard[finalX][finalY],
+                    anchor = NW)
+            else:
+                self.__promotionText = promotionPiece
+
             self.__textBoard[finalX][finalY] = (
                 self.__promotionText)
             self.__imageBoard[finalX][finalY] = self.\
@@ -1208,7 +1223,15 @@ class Game:
                 newMoveText += "8"            
 
             moveText = newMoveText
-        moveText = moveText[0:4]
+        
+        promotionPiece = None
+        if "=" in moveText:
+            promotionPiece = moveText[moveText.index("=")+1]
+            if not self.__isWhite:
+                promotionPiece = prompotionPiece.lower()            
+            moveText = moveText[:moveText.index("=")]
+        # # Not actually sure if this is needed, hopefully not
+        # moveText = moveText[0:4]
 
         pieceText = "P"
         if moveText[0].isupper():
@@ -1219,20 +1242,25 @@ class Game:
 
         self.__activePieceText = pieceText
 
-        endPosX = 8-int(moveText[-1])
-        endPosY = self.letterToNum(moveText[-2])
+        endPosX = 8-int(moveText[3])
+        endPosY = self.letterToNum(moveText[2])
         if not self.__isPlayerWhite:
             endPosX = 7-endPosX
             endPosY = 7-endPosY
         
         # if rank amd/or file was specified
         if len(moveText) > 2:
-            if len(moveText) == 4: #full AN
+            if len(moveText) >= 4: #full AN
                 startPosX = 8-int(moveText[1])
                 startPosY = self.letterToNum(moveText[0])
                 if engineFlag:
                     pieceText = self.__textBoard[startPosX][startPosY]
                     self.__activePieceText = pieceText
+                    if len(moveText) >= 5:
+                        print("g5")
+                        promotionPiece = moveText[4]
+                        if not self.__isWhite:
+                            promotionPiece = promotionPiece.lower()                        
                 if not self.__isPlayerWhite:
                     startPosX = int(moveText[1])-1
                     startPosY = 7-self.letterToNum(moveText[0])
@@ -1270,7 +1298,7 @@ class Game:
                                                                     [startPosY])
         self.__activePieceImage = self.__imageBoard[startPosX][startPosY]                
         
-        self.__endMove(endPosX, endPosY)
+        self.__endMove(endPosX, endPosY, promotionPiece)
 
     @staticmethod
     def numToLetter(num):
@@ -1298,7 +1326,8 @@ base = Tk()
 
 base.title("Chess")
 
+# board = Game(base, Game.DEFAULT_FEN, True)
 
-board = Game(base, Game.DEFAULT_FEN, True)
+board = Game(base, "k7/3P4/8/8/8/8/4p3/7K w - - 0 1", True)
 
 base.mainloop()
