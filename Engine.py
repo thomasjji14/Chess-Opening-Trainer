@@ -6,7 +6,7 @@ import sys
 class Engine():
     def __init__(self):
         self.__base = subprocess.Popen(
-            self.__resource_path('engine/sf.exe'),
+            "engine.exe",
             shell = True,
             universal_newlines=True,
             stdin=subprocess.PIPE,
