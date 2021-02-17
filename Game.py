@@ -1257,7 +1257,6 @@ class Game:
                     pieceText = self.__textBoard[startPosX][startPosY]
                     self.__activePieceText = pieceText
                     if len(moveText) >= 5:
-                        print("g5")
                         promotionPiece = moveText[4]
                         if not self.__isWhite:
                             promotionPiece = promotionPiece.lower()                        
@@ -1322,12 +1321,16 @@ class Game:
 
         return os.path.join(base_path, relative_path)
 
-base = Tk()
+if not os.path.exists("engine.exe"):
+    print('No engine file found. Make sure it is named "engine.exe" and is in the same directory as the COT')
+    input()
+else:
+    base = Tk()
 
-base.title("Chess")
+    base.title("Chess")
 
-# board = Game(base, Game.DEFAULT_FEN, True)
+    # board = Game(base, Game.DEFAULT_FEN, True)
 
-board = Game(base, "k7/3P4/8/8/8/8/4p3/7K w - - 0 1", True)
+    board = Game(base, "k7/3P4/8/8/8/8/4p3/7K w - - 0 1", True)
 
-base.mainloop()
+    base.mainloop()
