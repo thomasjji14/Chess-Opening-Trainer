@@ -6,7 +6,8 @@ import Engine
 from tkinter import *
 from Coordinate import *
 from playsound import playsound
-import time
+import datetime
+import json
 
 class Game:
     BROWN = "#B58863"
@@ -31,20 +32,23 @@ class Game:
         self.__canvas = Chessboard(self.__base)
         self.__canvas.pack(side = LEFT)
 
+        self.__genericButton = Button(base, text = "Analyze!", command = self.__runAnalysis)
+        self.__genericButton.pack(side = RIGHT, anchor = CENTER)
+
         # Marks the movetext number and moves
         self.__blackText = StringVar("")
-        self.__blackLabel = Label(base, textvariable = self.__blackText,
-                                  justify = LEFT)
+        self.__blackLabel = Label(base, textvariable = self.__blackText, anchor = "w",
+                                  justify = LEFT, width = 7)
         self.__blackLabel.pack(side = RIGHT, anchor = NW)
 
         self.__whiteText = StringVar("")
-        self.__whiteLabel = Label(base, textvariable = self.__whiteText,
-                                  justify = LEFT)
-        self.__whiteLabel.pack(side = RIGHT, anchor = NW)       
+        self.__whiteLabel = Label(base, textvariable = self.__whiteText, anchor = "w",
+                                  justify = LEFT, width = 7)
+        self.__whiteLabel.pack(side = RIGHT, anchor = NW)
 
         self.__moveText = StringVar("")
-        self.__moveLabel = Label(base, textvariable = self.__moveText,
-                                 justify = LEFT)
+        self.__moveLabel = Label(base, textvariable = self.__moveText, anchor = "e",
+                                 justify = LEFT, width = 4)
         self.__moveLabel.pack(side = RIGHT, anchor = NW)
 
         # Tracks the board with characters (logic)
@@ -120,6 +124,23 @@ class Game:
 
         self.__pgnMemory = []
         self.__pgnIndex = -1
+
+    def __runAnalysis(self):
+        if not os.path.exists("engine.exe"):
+            self.__genericPopup("No engine found.", titleText="Error", buttonText="Okay")
+        else:
+            instance = Engine.Engine()
+            print(instance.evaluate_at_position(self.__outputFEN(None), depth = 17, lines = 3))
+
+
+    def __genericPopup(self, text, titleText = "", buttonText = ""):
+        popup = Tk()
+        popup.wm_title(titleText)
+        label = Label(popup, text = text)
+        label.pack()
+        b1 = Button(popup, text = buttonText, command = popup.destroy)
+        b1.pack()
+        popup.mainloop()
 
     def __advancePGN(self, event):
         # print("Current index: "+str(self.__pgnIndex))
@@ -303,13 +324,14 @@ class Game:
         fenString += " "
 
         fenString += str(self.__moveCounter)
+        return fenString
         # # print(fenString)        
         # print("Engine started: ")
-        engineInstance = Engine.Engine()
+        # engineInstance = Engine.Engine()
         # print("Evaluating: ")
-        moveEval = engineInstance.evaluate_at_position(fenString, depth = 1)
+        # moveEval = engineInstance.evaluate_at_position(fenString, depth = 1)
         # print(moveEval[0])
-        self.pushMove(moveEval[0], True)
+        # self.pushMove(moveEval[0], True)
 
 
     def __createImages(self):
@@ -469,14 +491,16 @@ class Game:
         # Removes the pawn during an en passant
         if (abs(deltaX) == 1 
                 and abs(deltaY) == 1 
-                and [finalX, finalY] == self.__positionToEnPassant):
+                and [finalX, finalY] == self.__positionToEnPassant
+                and self.__activePieceText.upper() == "P"
+                ):
             pawn_x_index = finalX + (-1 if self.__isWhite ^ self.__isPlayerWhite else 1)
             
             self.__canvas.delete(self.__recordBoard
                 [finalX+ (1 if self.__isWhite else -1)][finalY])
-            self.__recordBoard[pawn_x_index][deltaY] = None
-            self.__textBoard[pawn_x_index][deltaY] = '-'
-            self.__imageBoard[pawn_x_index][deltaY] = None
+            self.__recordBoard[pawn_x_index][finalY] = None
+            self.__textBoard[pawn_x_index][finalY] = '-'
+            self.__imageBoard[pawn_x_index][finalY] = None
 
         self.__positionToEnPassant = None
         if self.__activePieceText.upper() == 'P':
@@ -698,10 +722,6 @@ class Game:
             path = "sfx/Capture.mp3"
         
         playsound(self.resource_path(path), False)
-
-        if not self.__isWhite:
-            self.__outputFEN(None)
-
 
     def __rightClickEvent(self, event):
         """ Restores the board prior to clicking anything """
@@ -1207,8 +1227,24 @@ class Game:
         return moveString
 
     def pushMove(self, moveText, engineFlag = False):
+        coordinates = self.__moveToCoordinate(moveText, engineFlag)
 
+        self.__originalPosition = coordinates[0]
 
+        startX = coordinates[0][0]
+        startY = coordinates[0][1]
+        endX = coordinates[1][0]
+        endY = coordinates[1][1]
+        promotionPiece = coordinates[2]
+
+        # Assigns the active piece to the piece that was clicked
+        self.__activePieceRecord = copy.deepcopy(self.__recordBoard[startX]
+                                                                    [startY])
+        self.__activePieceImage = self.__imageBoard[startX][startY]                
+        
+        self.__endMove(endX, endY, promotionPiece)
+
+    def __moveToCoordinate(self, moveText, engineFlag = False):
         # Strips the move of special characters
         moveText = moveText.replace("#","" ).replace("+", "").replace("x", "")
 
@@ -1289,15 +1325,7 @@ class Game:
                         if self.__isLegalMove(pieceText, [row, col], [endPosX, endPosY], self.__textBoard):
                             startPosX = row
                             startPosY = col
-
-        self.__originalPosition = [startPosX, startPosY]
-
-        # Assigns the active piece to the piece that was clicked
-        self.__activePieceRecord = copy.deepcopy(self.__recordBoard[startPosX]
-                                                                    [startPosY])
-        self.__activePieceImage = self.__imageBoard[startPosX][startPosY]                
-        
-        self.__endMove(endPosX, endPosY, promotionPiece)
+        return [[startPosX, startPosY], [endPosX, endPosY], promotionPiece]
 
     @staticmethod
     def numToLetter(num):
@@ -1321,16 +1349,46 @@ class Game:
 
         return os.path.join(base_path, relative_path)
 
-if not os.path.exists("engine.exe"):
-    print('No engine file found. Make sure it is named "engine.exe" and is in the same directory as the COT')
-    input()
-else:
-    base = Tk()
+# if not os.path.exists("engine.exe"):
+#     print('No engine file found. Make sure it is named "engine.exe" and is in the same directory as the trainer')
+#     input()
+# if not os.path.exists("config.json"):
+#     print('No config file found. Make sure it is named "config.json" and is in the same direcoty as the trainer')
+#     response = input("Would you like to make a new one (Y/N)?: ")
+#     if response.upper() == "Y":
+#         username = input("Chess.com Username: ")
+#         print("For the next few inputs, leave blank for default vals")
+#         multiPVLines = input("Number of possible moves suggested: ")
+#         if len(multiPVLines) == 0:
+#             multiPVLines = 3
+#         depth = input("Depth of evaluation: ")
+#         if len(depth) == 0:
+#             depth = 23
+#         print("Automation within engine inputs: ")
+#         engineFallability = input("0: Manual review | 1: Automatic pass on best move | 2: Autmoatic pass when move is on PV")
+#         if len(engineFallability) == 0:
+#             engineFallability = 0
+#         startPeriod = datetime.date.today().strftime("%Y/%m")
 
-    base.title("Chess")
 
-    # board = Game(base, Game.DEFAULT_FEN, True)
+#         jsonBase = {
+#             "Username" : username,
+#             "MultiPVLines" : multiPVLines,
+#             "probeDepth" : depth,
+#             "engineReliance" : engineFallability,
+#             "startPeriod" : startPeriod
+#         }
+#         with open("config.json", "w") as f:
+#             json.dump(f, {
 
-    board = Game(base, "k7/3P4/8/8/8/8/4p3/7K w - - 0 1", True)
+#             })
+        
 
-    base.mainloop()
+# else:
+base = Tk()
+
+base.title("Chess")
+
+board = Game(base, Game.DEFAULT_FEN, True)
+
+base.mainloop()
