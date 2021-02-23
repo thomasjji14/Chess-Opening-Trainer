@@ -1,4 +1,5 @@
 import requests
+import re
 import json
 import time
 import copy
@@ -39,11 +40,13 @@ def downloadGames(username):
 
     return games
 
+def parsePGN(pgnText):
+    return re.findall("(?<=\. )[A-Za-z]+\S*(?= )", pgnText)
 
-games = downloadGames("bankericebutt")
+# games = downloadGames("bankericebutt")
 
 
-
+# print(re.findall("(?<= )[A-Za-z]+\d+\S*", games[0]['pgn']))
 
 
 
