@@ -128,6 +128,8 @@ class Game:
             instance = Engine.Engine()
             engineOutput = instance.evaluate_at_position(self.__outputFEN(None), depth = 17, lines = 5)
             for moveSuggestion in engineOutput:
+                if len(moveSuggestion) == 0:
+                    continue
                 moveText = moveSuggestion.split(" ")[0]
                 evalText = moveSuggestion.split(" ")[1]
                 pieceToPromote = None
@@ -1290,7 +1292,7 @@ class Game:
         return moveString
 
     def pushMove(self, moveText, engineFlag = False):
-        coordinates = self.__moveToCoordinate(moveText, engineFlag)
+        coordinates = self.__moveToCoordinate(moveText)
 
         self.__originalPosition = coordinates[0]
 
