@@ -126,7 +126,113 @@ class Game:
             self.__genericPopup("No engine found.", titleText="Error", buttonText="Okay")
         else:
             instance = Engine.Engine()
-            print(instance.evaluate_at_position(self.__outputFEN(None), depth = 17, lines = 3))
+            engineOutput = instance.evaluate_at_position(self.__outputFEN(None), depth = 17, lines = 5)
+            for moveSuggestion in engineOutput:
+                moveText = moveSuggestion.split(" ")[0]
+                evalText = moveSuggestion.split(" ")[1]
+                pieceToPromote = None
+                if len(moveText) == 5:
+                    promotionPiece = moveSuggestion[-1]
+                    if self.__isWhite:
+                        promotionPiece.upper()
+                    moveText = moveText[:-1]
+
+                endPosX = 8-int(moveText[-1])
+                endPosY = self.letterToNum(moveText[-2])
+                startPosX = 8-int(moveText[1])
+                startPosY = self.letterToNum(moveText[0])                
+                if not self.__isPlayerWhite:
+                    startPosX = int(moveText[1])-1
+                    startPosY = 7-self.letterToNum(moveText[0])
+                    endPosX = 7-endPosX
+                    endPosY = 7-endPosY
+
+                textSAN = self.__getTheorheticalAN(startPosX, startPosY, endPosX, endPosY, copy.deepcopy(self.__textBoard), pieceToPromote)
+                
+                if not self.__isWhite:
+                    if evalText[0] == "-":
+                        evalText = evalText[1:]
+                    else:
+                        evalText = "-"+evalText
+                if "M" not in evalText:
+                    evalText = f'{int(evalText)/100:1.2f}'
+                
+                if "-" not in evalText and "M" not in evalText:
+                    evalText = "+"+evalText
+
+                print(textSAN+ "\t|\t" + evalText)
+            print("\n")
+                
+
+    def __getTheorheticalAN(self, originalX, originalY, finalX, finalY, board, promotionPiece = None):
+        activePiece = board[originalX][originalY]
+
+        # Records the piece being moved
+        moveText = self.__moveToBasicAN([originalX, originalY],
+                                        [finalX, finalY])
+
+        # Calculates the distances being moved by a piece
+        # deltaX represents horizontal move, and deltaY represents vertical
+        deltaX = finalX - originalX
+        deltaY = finalY - originalY
+        if self.__isPlayerWhite:
+            deltaX *= -1
+            deltaY *= -1
+
+        # Removes the pawn during an en passant
+        if (abs(deltaX) == 1 and abs(deltaY) == 1 and [finalX, finalY] == self.__positionToEnPassant and activePiece.upper() == "P"):
+            pawn_x_index = finalX + (-1 if self.__isWhite ^ self.__isPlayerWhite else 1)
+            board[pawn_x_index][finalY] = '-'
+
+        board[finalX][finalY] = activePiece[:]
+        board[originalX][originalY] = '-'
+
+        # Manually assigns rook displacement
+        if activePiece.upper() == "K" and abs(deltaY) > 1:
+            rookX = 0
+            rookY = 0
+            newRookY = 0
+
+            # New rook positions
+            if deltaY == -2:
+                rookY = 7
+                newRookY = 5
+                if not self.__isPlayerWhite:
+                    rookY = 0
+                    newRookY = 2
+            else: # Queenside
+                rookY = 0
+                newRookY = 3
+                if not self.__isPlayerWhite:
+                    rookY = 7
+                    newRookY = 4
+            if self.__isWhite:
+                rookX = 7 if self.__isPlayerWhite else 0
+                rookText = "R"
+            else:
+                rookX = 0 if self.__isPlayerWhite else 7
+                rookText = 'r'
+
+            board[rookX][newRookY] = rookText
+            board[rookX][rookY] = '-'
+
+
+        if promotionPiece is not None:
+            board[finalX][finalY] = promotionPiece
+
+        gameState = self.__checkGameState(board)
+        
+        # Adds the last bit of the AN
+        if promotionPiece is not None:
+            moveText += "=" + promotionPiece.upper()
+    
+        # Game end states
+        if gameState == self.CHECK:
+            moveText += '+'
+        elif gameState == self.CHECKMATE:
+            moveText += "#"
+        
+        return moveText
 
     def __download(self):
         self.__activeGames = downloader.downloadGames("bankericebutt")
@@ -633,7 +739,7 @@ class Game:
                 anchor = NW)
         
 
-        gameState = self.__checkGameState()
+        gameState = self.__checkGameState(self.__textBoard)
         
         # Adds the last bit of the AN
         if finalX in [0,7] and self.__activePieceText.upper() == 'P':
@@ -1053,11 +1159,13 @@ class Game:
                         return True
         return False
 
-    def __checkGameState(self):
+    def __checkGameState(self, board):
         """ Gets the state of the game """
+        if board is None:
+            board = self.__textBoard
 
-        abilityToMove = self.__canMove()
-        inCheck = self.__inCheck(not self.__isWhite, self.__textBoard)
+        abilityToMove = self.__canMove(board)
+        inCheck = self.__inCheck(not self.__isWhite, board)
 
         if not abilityToMove:
             if inCheck:
@@ -1071,7 +1179,7 @@ class Game:
         whiteMinor = 0
         blackMinor = 0
         noOtherPieces = True
-        for row in self.__textBoard:
+        for row in board:
             for piece in row:
                 if piece.upper() in ['N', 'B']:
                     if piece.isupper():
@@ -1087,31 +1195,34 @@ class Game:
             return self.DRAW
         
         occurences = 0
-        for board in self.__boardHistory:
-            if self.__textBoard == board:
+        for seenBoard in self.__boardHistory:
+            if board == seenBoard:
                 occurences +=1
         if occurences == 2:
             return self.DRAW
 
-    def __canMove(self):
+    def __canMove(self, board = None):
         """ Determines if a player is able to move """
+        if board is None:
+            board = self.__textBoard
         color = not self.__isWhite
 
         # Checks if any legal move is able to be made
         for row in range(self.BOARD_LEN):
             for col in range(self.BOARD_LEN):
-                pieceLetter = self.__textBoard[row][col]
+                pieceLetter = board[row][col]
                 if not pieceLetter == '-' and pieceLetter.isupper() == color:
                         for testRow in range(self.BOARD_LEN):
                             for testCol in range(self.BOARD_LEN):
                                 if self.__isLegalMove(pieceLetter, [row, col],
                                         [testRow, testCol],
-                                        self.__textBoard, color = color):
+                                        board, color = color):
                                     return True
         return False
 
     def __moveToBasicAN(self, oldPosition, newPosition):
         """ Gets the base moves """
+
 
         pieceText = self.__textBoard[oldPosition[X_INDEX]][
                                      oldPosition[Y_INDEX]]
@@ -1126,35 +1237,6 @@ class Game:
                 return "O-O"
             return "O-O-O"
         if pieceText.upper() in ["B", "R", "Q", "N"]:
-            # # Checking for the row number, letter
-            # for i in range(self.BOARD_LEN):
-            #     #Exclude current column
-            #     if not i == oldPosition[Y_INDEX]:
-            #         if self.__textBoard[oldPosition[X_INDEX]][i] == pieceText:
-            #             # If it finds a legal move that can be done on
-            #             # another file, then the letter must be appended
-            #             if self.__isLegalMove(pieceText, 
-            #                                   [newPosition[X_INDEX], i],
-            #                                   newPosition,
-            #                                   self.__textBoard):
-            #                 num = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
-            #                 moveString += self.numToLetter(num)
-            #                 break
-
-            # # Checking for the row number,letter
-            # for i in range(self.BOARD_LEN):
-            #     if not i == oldPosition[X_INDEX]:
-            #         # Exclude current row
-            #         if self.__textBoard[i][oldPosition[Y_INDEX]] == pieceText:
-            #             # If it finds a legal move that can be done on
-            #             # another rank, then the number must be appended
-            #             if self.__isLegalMove(pieceText, 
-            #                                   [i, newPosition[Y_INDEX]], 
-            #                                   newPosition, 
-            #                                   self.__textBoard):
-            #                 letter = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
-            #                 moveString += letter
-            #                 break
             
             # Originally reserved for knight moves, but better for all
             # Should default to file as a disambiguator if possible
@@ -1169,14 +1251,7 @@ class Game:
                                 colNum = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
             fileText = "" # LETTER
             rankText = "" # NUMBER
-            # if len(legalPositions) != 0:
-            #     colNum = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
-            #     rowNum = str(8-oldPosition[X_INDEX]) if self.__isPlayerWhite else str(1+oldPosition[X_INDEX])
-            #     for position in legalPositions:
-            #         if position[Y_INDEX] != oldPosition[Y_INDEX]:
-            #             fileText = self.numToLetter(colNum) 
-            #         else:
-            #             rankText = rowNum 
+
             if len(legalPositions) != 0:
                 colNum = oldPosition[Y_INDEX] if self.__isPlayerWhite else 7-oldPosition[Y_INDEX]
                 rowNum = (8-oldPosition[X_INDEX]) if self.__isPlayerWhite else (1+oldPosition[X_INDEX])
@@ -1192,9 +1267,6 @@ class Game:
                     rankText = str(rowNum)                    
                 else:
                     rankText = str(rowNum)
-
-
-            
             
             moveString += fileText + rankText
                     
@@ -1235,7 +1307,8 @@ class Game:
         
         self.__endMove(endX, endY, promotionPiece)
 
-    def __moveToCoordinate(self, moveText, engineFlag = False):
+    # The point of this is for SAN, LAN provided by engine is elsewhere
+    def __moveToCoordinate(self, moveText):
         # Strips the move of special characters
         moveText = moveText.replace("#","" ).replace("+", "").replace("x", "")
 
@@ -1280,14 +1353,7 @@ class Game:
         if len(moveText) > 2:
             if len(moveText) >= 4: #full AN
                 startPosX = 8-int(moveText[1])
-                startPosY = self.letterToNum(moveText[0])
-                if engineFlag:
-                    pieceText = self.__textBoard[startPosX][startPosY]
-                    self.__activePieceText = pieceText
-                    if len(moveText) >= 5:
-                        promotionPiece = moveText[4]
-                        if not self.__isWhite:
-                            promotionPiece = promotionPiece.lower()                        
+                startPosY = self.letterToNum(moveText[0])                
                 if not self.__isPlayerWhite:
                     startPosX = int(moveText[1])-1
                     startPosY = 7-self.letterToNum(moveText[0])
