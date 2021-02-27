@@ -31,32 +31,42 @@ class Game:
         # Tkinter object initailizers        
         self.__base = base
         self.__canvas = Chessboard(self.__base)
-        self.__canvas.pack(side = LEFT)
+        self.__canvas.grid(row = 0, column = 0, rowspan = 1000)
 
         self.__genericButton = Button(base, text = "Retrieve Games", command = self.__download)
-        self.__genericButton.pack(side = RIGHT, anchor = CENTER)
+        self.__genericButton.grid(row = 0, column = 4, sticky = NSEW)
 
         self.__genericButton = Button(base, text = "Next Game", command = self.__nextGame)
-        self.__genericButton.pack(side = RIGHT, anchor = CENTER)
+        self.__genericButton.grid(row = 1, column = 4, sticky = NSEW)
 
         self.__genericButton = Button(base, text = "Analyze!", command = self.__runAnalysis)
-        self.__genericButton.pack(side = RIGHT, anchor = CENTER)
+        self.__genericButton.grid(row = 0, column = 5, columnspan = 2, sticky = NSEW)
 
         # Marks the movetext number and moves
-        self.__blackText = StringVar("")
-        self.__blackLabel = Label(base, textvariable = self.__blackText, anchor = "w",
-                                  justify = LEFT, width = 7)
-        self.__blackLabel.pack(side = RIGHT, anchor = NW)
+        self.__moveText = StringVar("")
+        self.__moveLabel = Label(base, textvariable = self.__moveText, anchor = "e",
+                                 justify = LEFT, width = 4)
+        self.__moveLabel.grid(row = 0, column = 1, sticky = N, rowspan = 1000)
 
         self.__whiteText = StringVar("")
         self.__whiteLabel = Label(base, textvariable = self.__whiteText, anchor = "w",
                                   justify = LEFT, width = 7)
-        self.__whiteLabel.pack(side = RIGHT, anchor = NW)
+        self.__whiteLabel.grid(row = 0, column = 2, sticky = N, rowspan = 1000)
 
-        self.__moveText = StringVar("")
-        self.__moveLabel = Label(base, textvariable = self.__moveText, anchor = "e",
-                                 justify = LEFT, width = 4)
-        self.__moveLabel.pack(side = RIGHT, anchor = NW)
+        self.__blackText = StringVar("")
+        self.__blackLabel = Label(base, textvariable = self.__blackText, anchor = "w",
+                                  justify = LEFT, width = 7)
+        self.__blackLabel.grid(row = 0, column = 3, sticky = N, rowspan = 1000)
+
+        self.__engineEvalText = StringVar("")
+        self.__analysisEvalLabel = Label(base, textvariable = self.__engineEvalText,
+                                    anchor = "w", justify = LEFT, width = 6)
+        self.__analysisEvalLabel.grid(row = 1, column = 6, rowspan = 1000, sticky = N)
+        
+        self.__engineMoveText = StringVar("")
+        self.__analysisMoveLabel = Label(base, textvariable = self.__engineMoveText,
+                                    anchor = "w", justify = LEFT, width = 7)
+        self.__analysisMoveLabel.grid(row = 1, column = 5, rowspan = 1000, sticky = N)
 
         # Tracks the board with characters (logic)
         self.__textBoard = [[None for i in range(self.BOARD_LEN)]
@@ -125,8 +135,12 @@ class Game:
         if not os.path.exists("engine.exe"):
             self.__genericPopup("No engine found.", titleText="Error", buttonText="Okay")
         else:
+            self.__engineEvalText.set("")
+            self.__engineMoveText.set("")
+
             instance = Engine.Engine()
             engineOutput = instance.evaluate_at_position(self.__outputFEN(None), depth = 17, lines = 5)
+              
             for moveSuggestion in engineOutput:
                 if len(moveSuggestion) == 0:
                     continue
@@ -161,9 +175,11 @@ class Game:
                 
                 if "-" not in evalText and "M" not in evalText:
                     evalText = "+"+evalText
+            
+                self.__engineEvalText.set(self.__engineEvalText.get()+evalText+"\n")
+                self.__engineMoveText.set(self.__engineMoveText.get()+textSAN+"\n")
 
-                print(textSAN+ "\t|\t" + evalText)
-            print("\n")
+            # print(textSAN+ "\t|\t" + evalText)
                 
 
     def __getTheorheticalAN(self, originalX, originalY, finalX, finalY, board, promotionPiece = None):
