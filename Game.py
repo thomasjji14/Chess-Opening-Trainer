@@ -1346,7 +1346,7 @@ class Game:
         if "=" in moveText:
             promotionPiece = moveText[moveText.index("=")+1]
             if not self.__isWhite:
-                promotionPiece = prompotionPiece.lower()            
+                promotionPiece = promotionPiece.lower()            
             moveText = moveText[:moveText.index("=")]
         # # Not actually sure if this is needed, hopefully not
         # moveText = moveText[0:4]
