@@ -11,74 +11,87 @@ import datetime
 import json
 
 class Game:
-    BROWN = "#B58863"
-    LIGHT_BROWN = "#F0D9B5"
+
+    BROWN = '#B58863'
+    LIGHT_BROWN = '#F0D9B5'
     BOX_LEN = 95
     BOARD_LEN = 8
     X_INDEX = 0
     Y_INDEX = 1
     WHITE_INDEX = 0
     BLACK_INDEX = 1
-    STALEMATE = "Stalemate"
-    CHECKMATE = "Checkmate"
-    CHECK = "Check"
-    DRAW  = "Draw"
+    STALEMATE = 'Stalemate'
+    CHECKMATE = 'Checkmate'
+    CHECK = 'Check'
+    DRAW = 'Draw'
     DEFAULT_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
-    def __init__(self, base, FENCode, asWhite = True):
+    def __init__(self, base, FENCode, asWhite=True):
         """ Inits the Chessboard object from a Tkinter Base """
 
-        # Tkinter object initailizers        
+        # Tkinter object initailizers
         self.__base = base
         self.__canvas = Chessboard(self.__base)
-        self.__canvas.grid(row = 0, column = 0, rowspan = 1000)
+        self.__canvas.grid(row=0, column=0, rowspan=1000)
 
-        self.__genericButton = Button(base, text = "Retrieve Games", command = self.__download)
-        self.__genericButton.grid(row = 0, column = 4, sticky = NSEW)
+        # Buttons for game analysis
+        self.__genericButton = Button(base, text='Retrieve Games',
+                command=self.__download)
+        self.__genericButton.grid(row=0, column=4, sticky=NSEW)
+        self.__genericButton = Button(base, text='Next Game',
+                command=self.__nextGame)
+        self.__genericButton.grid(row=1, column=4, sticky=NSEW)
+        self.__genericButton = Button(base, text='Analyze!',
+                command=self.__runAnalysis)
+        self.__genericButton.grid(row=0, column=5, columnspan=2,
+                                  sticky=NSEW)
 
-        self.__genericButton = Button(base, text = "Next Game", command = self.__nextGame)
-        self.__genericButton.grid(row = 1, column = 4, sticky = NSEW)
+        # Labels for movenumbers and moves by black/white
+        self.__moveText = StringVar('')
+        self.__moveLabel = Label(base, textvariable=self.__moveText,
+                                 anchor='e', justify=LEFT, width=4,
+                                 font = ("Lucidia Console", 10), bg = "white")
+        self.__moveLabel.grid(row=0, column=1, sticky=N, rowspan=1000)
+        self.__whiteText = StringVar('')
+        self.__whiteLabel = Label(base, textvariable=self.__whiteText,
+                                  anchor='w', justify=LEFT, width=7,
+                                  font = ("Lucidia Console", 10), bg = "white")
+        self.__whiteLabel.grid(row=0, column=2, sticky=N, rowspan=1000)
+        self.__blackText = StringVar('')
+        self.__blackLabel = Label(base, textvariable=self.__blackText,
+                                  anchor='w', justify=LEFT, width=7,
+                                  font = ("Lucidia Console", 10), bg = "white")
+        self.__blackLabel.grid(row=0, column=3, sticky=N, rowspan=1000)
 
-        self.__genericButton = Button(base, text = "Analyze!", command = self.__runAnalysis)
-        self.__genericButton.grid(row = 0, column = 5, columnspan = 2, sticky = NSEW)
+        self.__engineEvalText = StringVar('')
+        self.__analysisEvalLabel = Label(base,
+                textvariable=self.__engineEvalText, anchor='w',
+                justify=LEFT, width=6)
+        self.__analysisEvalLabel.grid(row=1, column=6, rowspan=1000,
+                sticky=N)
 
-        # Marks the movetext number and moves
-        self.__moveText = StringVar("")
-        self.__moveLabel = Label(base, textvariable = self.__moveText, anchor = "e",
-                                 justify = LEFT, width = 4)
-        self.__moveLabel.grid(row = 0, column = 1, sticky = N, rowspan = 1000)
+        self.__engineMoveText = StringVar('')
+        self.__analysisMoveLabel = Label(base,
+                textvariable=self.__engineMoveText, anchor='w',
+                justify=LEFT, width=7)
+        self.__analysisMoveLabel.grid(row=1, column=5, rowspan=1000,
+                sticky=N)
 
-        self.__whiteText = StringVar("")
-        self.__whiteLabel = Label(base, textvariable = self.__whiteText, anchor = "w",
-                                  justify = LEFT, width = 7)
-        self.__whiteLabel.grid(row = 0, column = 2, sticky = N, rowspan = 1000)
+        # 2-dimensional list, with dimensions (Board len, board len)
 
-        self.__blackText = StringVar("")
-        self.__blackLabel = Label(base, textvariable = self.__blackText, anchor = "w",
-                                  justify = LEFT, width = 7)
-        self.__blackLabel.grid(row = 0, column = 3, sticky = N, rowspan = 1000)
-
-        self.__engineEvalText = StringVar("")
-        self.__analysisEvalLabel = Label(base, textvariable = self.__engineEvalText,
-                                    anchor = "w", justify = LEFT, width = 6)
-        self.__analysisEvalLabel.grid(row = 1, column = 6, rowspan = 1000, sticky = N)
-        
-        self.__engineMoveText = StringVar("")
-        self.__analysisMoveLabel = Label(base, textvariable = self.__engineMoveText,
-                                    anchor = "w", justify = LEFT, width = 7)
-        self.__analysisMoveLabel.grid(row = 1, column = 5, rowspan = 1000, sticky = N)
+        genericBoardGrid = [[None for i in range(self.BOARD_LEN)]
+                            for i in range(self.BOARD_LEN)]
 
         # Tracks the board with characters (logic)
-        self.__textBoard = [[None for i in range(self.BOARD_LEN)]
-                            for i in range(self.BOARD_LEN)]
-        # Tracks the board with image objects (image referencing)
-        self.__imageBoard = [[None for i in range(self.BOARD_LEN)]
-                             for i in range(self.BOARD_LEN)]
-        # Tracks the board with references (drawn image references)
-        self.__recordBoard = [[None for i in range(self.BOARD_LEN)]
-                              for i in range(self.BOARD_LEN)]
+        self.__textBoard = copy.deepcopy(genericBoardGrid)
 
-        self.__promotionText = ""
+        # Tracks the board with image objects (image referencing)
+        self.__imageBoard = copy.deepcopy(genericBoardGrid)
+
+        # Tracks the board with references (drawn image references)
+        self.__recordBoard = copy.deepcopy(genericBoardGrid)
+
+        self.__promotionText = ''
         self.__promotionImages = []
         self.__promotionButtons = []
 
@@ -90,32 +103,20 @@ class Game:
         self.__base.bind('<ButtonRelease-3>', self.__finishShape)
         self.__base.bind('<Right>', self.__advancePGN)
         self.__base.bind('<Left>', self.__backtrackPGN)
-        self.__base.bind("<space>", self.__outputFEN)
-        self.__base.bind("<Up>", self.__printPGN)
+        self.__base.bind('<space>', self.__printFEN)
+        self.__base.bind('<Up>', self.__printPGN)
 
         # Trackers for when pieces are moved
         self.__activePieceText = '-'
         self.__activePieceRecord = None
         self.__activePieceText = None
-        self.__originalPosition = [-1,-1]
 
-        # Boards 
+        # Boards
         self.__moveHistory = []
         self.__boardHistory = []
 
         self.__isGameActive = True
 
-        # FENCode fields
-        self.__isWhite = True
-        self.__moveCounter = 0
-        self.__halfMoveCounter = 0
-        self.__positionToEnPassant = None
-
-        self.__whiteKingCastle = False
-        self.__blackKingCastle = False
-        self.__whiteQueenCastle = False
-        self.__blackQueenCastle = False
-    
         self.__isPlayerWhite = asWhite
 
         self.__activeArrows = {}
@@ -123,10 +124,10 @@ class Game:
         self.__originalArrowCoordinate = ()
 
         self.__readFEN(FENCode, asWhite)
-        
+
         self.__drawPieces()
 
-        self.__newMoves = []
+        self.__activeGameMoves = []
 
         self.__pgnMemory = []
         self.__pgnIndex = 0
@@ -139,7 +140,7 @@ class Game:
             self.__engineMoveText.set("")
 
             instance = Engine.Engine()
-            engineOutput = instance.evaluate_at_position(self.__outputFEN(None), depth = 17, lines = 5)
+            engineOutput = instance.evaluate_at_position(self.__printFEN(None), depth = 17, lines = 5)
               
             for moveSuggestion in engineOutput:
                 if len(moveSuggestion) == 0:
@@ -207,9 +208,6 @@ class Game:
 
         # Manually assigns rook displacement
         if activePiece.upper() == "K" and abs(deltaY) > 1:
-            rookX = 0
-            rookY = 0
-            newRookY = 0
 
             # New rook positions
             if deltaY == -2:
@@ -257,7 +255,7 @@ class Game:
         
 
     def __nextGame(self):
-        self.__newMoves = downloader.parsePGN(self.__activeGames.pop(0)['pgn'])
+        self.__activeGameMoves = downloader.parsePGN(self.__activeGames.pop(0)['pgn'])
 
         self.__readFEN(self.DEFAULT_FEN, True)
         self.__drawPieces()
@@ -266,8 +264,6 @@ class Game:
         self.__whiteText.set("")
         self.__moveText.set("")
         self.__pgnIndex = 0
-
-
 
     def __genericPopup(self, text, titleText = "", buttonText = ""):
         popup = Tk()
@@ -279,8 +275,8 @@ class Game:
         popup.mainloop()
 
     def __advancePGN(self, event):
-        if self.__pgnIndex < len(self.__newMoves):
-            self.pushMove(self.__newMoves[self.__pgnIndex])
+        if self.__pgnIndex < len(self.__activeGameMoves):
+            self.pushMove(self.__activeGameMoves[self.__pgnIndex])
     
     def __backtrackPGN(self, event):
         if self.__pgnIndex > 0:
@@ -391,7 +387,7 @@ class Game:
             print(str(i+1)+"."+whiteList[i]+" "+blackList[i], end = " ")
         print("\n")
             
-    def __outputFEN(self, event):
+    def __printFEN(self, event):
         fenString = ""
         
         positionString = ""
@@ -439,15 +435,8 @@ class Game:
         fenString += " "
 
         fenString += str(self.__moveCounter)
-        return fenString
-        # # print(fenString)        
-        # print("Engine started: ")
-        # engineInstance = Engine.Engine()
-        # print("Evaluating: ")
-        # moveEval = engineInstance.evaluate_at_position(fenString, depth = 1)
-        # print(moveEval[0])
-        # self.pushMove(moveEval[0], True)
 
+        print(fenString)
 
     def __createImages(self):
         # Finds the images that is required to display
@@ -460,19 +449,19 @@ class Game:
     def __getPieceFromText(self, pieceText):
         """ Maps the piece character to the piece's image """
         PIECE_IMAGE_MAP = {
-            'p' : PhotoImage(file = self.resource_path('cpieces/bpawn.png')),
-            'r' : PhotoImage(file = self.resource_path('cpieces/brook.png')),
-            'b' : PhotoImage(file = self.resource_path('cpieces/bbishop.png')),
-            'n' : PhotoImage(file = self.resource_path('cpieces/bknight.png')),
-            'k' : PhotoImage(file = self.resource_path('cpieces/bking.png')),
-            'q' : PhotoImage(file = self.resource_path('cpieces/bqueen.png')),
+            'p' : PhotoImage(file = self.getPyFile('cpieces/bpawn.png')),
+            'r' : PhotoImage(file = self.getPyFile('cpieces/brook.png')),
+            'b' : PhotoImage(file = self.getPyFile('cpieces/bbishop.png')),
+            'n' : PhotoImage(file = self.getPyFile('cpieces/bknight.png')),
+            'k' : PhotoImage(file = self.getPyFile('cpieces/bking.png')),
+            'q' : PhotoImage(file = self.getPyFile('cpieces/bqueen.png')),
 
-            'P' : PhotoImage(file = self.resource_path('cpieces/wpawn.png')),
-            'R' : PhotoImage(file = self.resource_path('cpieces/wrook.png')),
-            'B' : PhotoImage(file = self.resource_path('cpieces/wbishop.png')),
-            'N' : PhotoImage(file = self.resource_path('cpieces/wknight.png')),
-            'K' : PhotoImage(file = self.resource_path('cpieces/wking.png')),
-            'Q' : PhotoImage(file = self.resource_path('cpieces/wqueen.png')),
+            'P' : PhotoImage(file = self.getPyFile('cpieces/wpawn.png')),
+            'R' : PhotoImage(file = self.getPyFile('cpieces/wrook.png')),
+            'B' : PhotoImage(file = self.getPyFile('cpieces/wbishop.png')),
+            'N' : PhotoImage(file = self.getPyFile('cpieces/wknight.png')),
+            'K' : PhotoImage(file = self.getPyFile('cpieces/wking.png')),
+            'Q' : PhotoImage(file = self.getPyFile('cpieces/wqueen.png')),
 
             '-' : None
         }
@@ -836,7 +825,7 @@ class Game:
         elif 'x' in moveText:
             path = "sfx/Capture.mp3"
         
-        playsound(self.resource_path(path), False)
+        playsound(self.getPyFile(path), False)
 
     def __rightClickEvent(self, event):
         """ Restores the board prior to clicking anything """
@@ -1415,7 +1404,7 @@ class Game:
 
     # CREDITS TO max OF Stackoverflow
     @staticmethod
-    def resource_path(relative_path):
+    def getPyFile(relative_path):
         """ Get absolute path for PyInstaller """
         try:
             # PyInstaller creates a temp folder and stores path in _MEIPASS
