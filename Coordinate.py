@@ -1,27 +1,21 @@
-BOX_LEN = 95
-X_INDEX = 0
-Y_INDEX = 1
+class Coordinate():
+    def __init__(self, x_index, y_index):
+        self.x = x_index
+        self.y = y_index
+    
+    def __eq__(self, other):
+        if self is None or other is None:
+            return False
+        return self.x == other.x and self.y == other.y
+    
+    def toTuple(self):
+        return (self.x,self.y)
+    
+    def inverse(self):
+        self.x *= -1
+        self.y *= -1
 
-def getBoardX(event):
-    """ Retrieves the board x-coordinate from a click event """
-    return int(event.y/BOX_LEN)
-
-def getBoardY(event):
-    """ Retrieves the board y-coordinate from a click event """
-    return int(event.x/BOX_LEN)
-
-def getCanvasX(boardCoordinate):
-    """ Retrieves canvas x-coordinate from board coordinates """
-    return boardCoordinate[Y_INDEX]*BOX_LEN
-
-def getCanvasY(boardCoordinate):
-    """ Retrieves canvas y-coordinate from board coordinates """
-    return boardCoordinate[X_INDEX]*BOX_LEN
-
-def getNextCanvasX(boardCoordinate):
-    """ Retrieves next canvas X-coordinate from board coordinates """
-    return (boardCoordinate[Y_INDEX] + 1) * BOX_LEN
-
-def getNextCanvasY(boardCoordinate):
-    """ Retrieves next canvas Y-coordinate from board coordinates """
-    return (boardCoordinate[X_INDEX] + 1) * BOX_LEN
+    @staticmethod
+    def getDifference(firstCoordinate, secondCoordinate):
+        return Coordinate(firstCoordinate.x-secondCoordinate.x, 
+                          firstCoordinate.y-secondCoordinate.y)

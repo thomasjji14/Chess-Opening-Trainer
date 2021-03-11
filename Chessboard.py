@@ -1,6 +1,8 @@
 from tkinter import *
-from Coordinate import *
-
+from Coordinate import Coordinate
+from CanvasUtility import *
+from Cell import Cell
+from FileManager import *
 
 class Chessboard(Canvas):
 
@@ -17,15 +19,38 @@ class Chessboard(Canvas):
         super(Chessboard, self).__init__(base, width=760, height=760,
                 bg='White', highlightthickness=0)
         self.drawBoard()
+        self.__board = [[Cell() for j in range(self.BOARD_LEN)
+                        ] for i in range(self.BOARD_LEN)]
+
+    def textUpdate(self, pieceText, coordinate):
+        currentCell = self.__board[coordinate.x][coordinate.y]
+        currentCell.text = pieceText
+        currentCell.image = self.__getPieceFromText(pieceText)
+        currentCell.record = super().create_image(
+                            getCanvasX(coordinate), 
+                            getCanvasY(coordinate), 
+                            image = currentCell.image, 
+                            anchor = NW
+                        )
+
+    def getTextBoard(self):
+        textBoard = []
+        for row in range(self.BOARD_LEN):
+            textBoard.append([])
+            for col in range(self.BOARD_LEN):
+                textBoard[row].append(self.__board[row][col].text)
+        return textBoard
+
+    def getCell(self, coordinate):
+        return self.__board[coordinate.x][coordinate.y]
 
     def drawBoard(self):
-
         # Used to aternate colors
         lightBrownFlag = True
 
         for row in range(self.BOARD_LEN):
             for col in range(self.BOARD_LEN):
-                coordinatePair = [row, col]
+                coordinatePair = Coordinate(row,col)
                 super().create_rectangle(
                     getCanvasX(coordinatePair),
                     getCanvasY(coordinatePair),
@@ -42,30 +67,30 @@ class Chessboard(Canvas):
             lightBrownFlag = not lightBrownFlag
 
     def drawArrow(self, point1, point2):
-        deltaX = point2[X_INDEX] - point1[X_INDEX]
-        deltaY = point2[Y_INDEX] - point1[Y_INDEX]
+        deltaX = point2.x - point1.x
+        deltaY = point2.y - point1.y
         hypotnuse = (deltaX ** 2 + deltaY ** 2) ** 0.5
         cosineVal = deltaX / hypotnuse
         sineVal = deltaY / hypotnuse
 
-        arrowBase = [point2[X_INDEX] - cosineVal
-                     * self.ARROW_BASE_DISTANCE, point2[Y_INDEX]
-                     - sineVal * self.ARROW_BASE_DISTANCE]
+        arrowBase = Coordinate(point2.x - cosineVal
+                     * self.ARROW_BASE_DISTANCE, point2.y
+                     - sineVal * self.ARROW_BASE_DISTANCE)
         points = [
-            point1[X_INDEX] - self.SHORT_DISTANCE * sineVal,
-            point1[Y_INDEX] + self.SHORT_DISTANCE * cosineVal,
-            arrowBase[X_INDEX] - self.SHORT_DISTANCE * sineVal,
-            arrowBase[Y_INDEX] + self.SHORT_DISTANCE * cosineVal,
-            arrowBase[X_INDEX] - self.LONG_DISTANCE * sineVal,
-            arrowBase[Y_INDEX] + self.LONG_DISTANCE * cosineVal,
-            point2[X_INDEX],
-            point2[Y_INDEX],
-            arrowBase[X_INDEX] + self.LONG_DISTANCE * sineVal,
-            arrowBase[Y_INDEX] - self.LONG_DISTANCE * cosineVal,
-            arrowBase[X_INDEX] + self.SHORT_DISTANCE * sineVal,
-            arrowBase[Y_INDEX] - self.SHORT_DISTANCE * cosineVal,
-            point1[X_INDEX] + self.SHORT_DISTANCE * sineVal,
-            point1[Y_INDEX] - self.SHORT_DISTANCE * cosineVal,
+            point1.x - self.SHORT_DISTANCE * sineVal,
+            point1.y + self.SHORT_DISTANCE * cosineVal,
+            arrowBase.x - self.SHORT_DISTANCE * sineVal,
+            arrowBase.y + self.SHORT_DISTANCE * cosineVal,
+            arrowBase.x - self.LONG_DISTANCE * sineVal,
+            arrowBase.y + self.LONG_DISTANCE * cosineVal,
+            point2.x,
+            point2.y,
+            arrowBase.x + self.LONG_DISTANCE * sineVal,
+            arrowBase.y - self.LONG_DISTANCE * cosineVal,
+            arrowBase.x + self.SHORT_DISTANCE * sineVal,
+            arrowBase.y - self.SHORT_DISTANCE * cosineVal,
+            point1.x + self.SHORT_DISTANCE * sineVal,
+            point1.y - self.SHORT_DISTANCE * cosineVal,
             ]
 
         return super().create_polygon(points, fill='#6D9F58',
@@ -73,10 +98,33 @@ class Chessboard(Canvas):
 
     def drawCircleHighlight(self, point, customWidth=7.5):
         return super().create_oval(
-            point[X_INDEX] - 0.5 * self.BOX_LEN + customWidth / 2,
-            point[Y_INDEX] - 0.5 * self.BOX_LEN + customWidth / 2,
-            point[X_INDEX] + 0.5 * self.BOX_LEN - customWidth / 2,
-            point[Y_INDEX] + 0.5 * self.BOX_LEN - customWidth / 2,
+            point.x - 0.5 * self.BOX_LEN + customWidth / 2,
+            point.y - 0.5 * self.BOX_LEN + customWidth / 2,
+            point.x + 0.5 * self.BOX_LEN - customWidth / 2,
+            point.y + 0.5 * self.BOX_LEN - customWidth / 2,
             outline='#6D9F58',
             width=customWidth,
             )
+
+    # Photoimages can only be created AFTER declaring a tkinter object
+    def __getPieceFromText(self, pieceText):
+        """ Maps the piece character to the piece's image """
+        PIECE_IMAGE_MAP = {
+            'p' : PhotoImage(file = getFile('cpieces/bpawn.png')),
+            'r' : PhotoImage(file = getFile('cpieces/brook.png')),
+            'b' : PhotoImage(file = getFile('cpieces/bbishop.png')),
+            'n' : PhotoImage(file = getFile('cpieces/bknight.png')),
+            'k' : PhotoImage(file = getFile('cpieces/bking.png')),
+            'q' : PhotoImage(file = getFile('cpieces/bqueen.png')),
+
+            'P' : PhotoImage(file = getFile('cpieces/wpawn.png')),
+            'R' : PhotoImage(file = getFile('cpieces/wrook.png')),
+            'B' : PhotoImage(file = getFile('cpieces/wbishop.png')),
+            'N' : PhotoImage(file = getFile('cpieces/wknight.png')),
+            'K' : PhotoImage(file = getFile('cpieces/wking.png')),
+            'Q' : PhotoImage(file = getFile('cpieces/wqueen.png')),
+
+            '-' : None
+        }
+        return PIECE_IMAGE_MAP[pieceText]
+        # CREDITS TO max OF Stackoverflow
