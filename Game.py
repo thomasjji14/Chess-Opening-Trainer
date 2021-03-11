@@ -452,7 +452,7 @@ class Game:
 
         # Calculates how far the piece has moved
         delta = Coordinate.getDifference(self.__originalPos, finalPos)
-        if self.__isPlayerWhite:
+        if not self.__isPlayerWhite:
             delta.inverse()
 
         # Only pawn moves or captures reset the board position
@@ -509,7 +509,7 @@ class Game:
                             Coordinate(finalPos.x, finalPos.y-1), 
                             Coordinate(self.__originalPos.x - int(delta.x/2),
                                        self.__originalPos.y), 
-                            theoryBoard, 
+                            theoryBoard,
                             color = not self.__isWhite):
                             
                             leftAbleToTake = True
@@ -517,13 +517,13 @@ class Game:
                     if not (rightSpotPiece.isupper() ^ (not self.__isWhite)):
                         if self.__isLegalMove(
                             rightSpotPiece, 
-                            Coordinate(finalPos.x, finalPos.y+1), 
+                            Coordinate(finalPos.x, finalPos.y+1),
                             Coordinate(self.__originalPos.x - int(delta.x/2),
                                        self.__originalPos.y),
                             theoryBoard, 
                             color = not self.__isWhite):
 
-                            rightAbleToTake = True                        
+                            rightAbleToTake = True
                 if leftAbleToTake or rightAbleToTake:
                     self.__positionToEnPassant = Coordinate(
                         self.__originalPos.x - int(delta.x/2), 

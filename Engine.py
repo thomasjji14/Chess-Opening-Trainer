@@ -39,7 +39,8 @@ class Engine():
                 pv_index = decompLine.index("pv")
                 score_index = decompLine.index("score")
                 bestMoves[index] = \
-                    decompLine[pv_index + 1] + " " + decompLine[score_index + 1]
+                    decompLine[pv_index + 1] + " " + decompLine[
+                        score_index + 1]
         self.__isReady()
         self.__base.stdin.write("stop\n")
         self.__isReady()
