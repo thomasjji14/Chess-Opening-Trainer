@@ -16,6 +16,9 @@ def getCanvasY(boardCoordinate):
     """ Retrieves canvas y-coordinate from board coordinates """
     return boardCoordinate.x*BOX_LEN
 
+def getCanvasFromBoardCoordinate(boardCoordinate):
+    return Coordinate(int((boardCoordinate.y+0.5)*BOX_LEN), int((boardCoordinate.x+0.5)*BOX_LEN))
+
 def getNextCanvasX(boardCoordinate):
     """ Retrieves next canvas X-coordinate from board coordinates """
     return (boardCoordinate.y + 1) * BOX_LEN

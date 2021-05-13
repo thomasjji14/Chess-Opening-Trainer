@@ -2,7 +2,7 @@ import copy
 import sys
 import os
 from Chessboard import Chessboard
-import Engine
+from Engine import Engine
 from tkinter import *
 from playsound import playsound
 from Coordinate import Coordinate
@@ -10,6 +10,7 @@ from CanvasUtility import *
 from Cell import Cell
 from FileManager import *
 import downloader
+import time
 import datetime
 import json
 
@@ -35,51 +36,82 @@ class Game:
 
         # Tkinter object initailizers
         self.__base = base
-        self.__board = Chessboard(self.__base)
-        self.__board.grid(row=0, column=0, rowspan=1000)
+
+        self.__boardFrame = Frame(base)
+        self.__boardFrame.grid(row=0, column=0, rowspan=1, columnspan=1)
+        self.__board = Chessboard(self.__boardFrame)
+        self.__board.grid(row = 0, column = 0)
+        
+
+        self.__infoFrame = Frame(base)
+        self.__infoFrame.grid(row=0, column=1, sticky = N)
+
+        self.__moveFrame = Frame(self.__infoFrame)
+        self.__moveFrame.grid(row=0, column=0, rowspan=1, columnspan=1, sticky = N)
+
+        self.__analysisFrame = Frame(self.__infoFrame)
+        self.__analysisFrame.grid(row=0, column=1, rowspan=1, columnspan=1, sticky = N, ipady=280)
+        self.__gameProcessingFrame = Frame(self.__infoFrame)
+        self.__gameProcessingFrame.grid(row = 1, column= 0, rowspan = 1, columnspan= 2, sticky = S)
+
+        self.__movePlayedText = StringVar('')
+        self.__movePlayedLabel = Label(self.__gameProcessingFrame, textvariable=self.__movePlayedText,
+                                  anchor='w', justify=LEFT, font = ("Times New Roman", 12))
+        self.__movePlayedLabel.grid(row=0, column=0, rowspan=1, columnspan= 2)
+
+        self.__acceptMoveButton = Button(self.__gameProcessingFrame, text = "Yes", command = self.dummyfxn)
+        self.__acceptMoveButton.grid(row = 1, column = 0)
+        self.__betterMoveEntry = Entry(self.__gameProcessingFrame)
+        self.__betterMoveEntry.grid(row = 1, column = 1)
+        self.__goFlag = False
+
 
         # Buttons for game analysis
-        self.__genericButton = Button(base, text='Retrieve Games',
-                command=self.__download)
-        self.__genericButton.grid(row=0, column=4, sticky=NSEW)
-        self.__genericButton = Button(base, text='Next Game',
-                command=self.__nextGame)
-        self.__genericButton.grid(row=1, column=4, sticky=NSEW)
-        self.__genericButton = Button(base, text='Analyze!',
+        self.__genericButton = Button(self.__analysisFrame, text='Analyze!',
                 command=self.__runAnalysis)
-        self.__genericButton.grid(row=0, column=5, columnspan=2,
+        self.__genericButton.grid(row=0, column=0, columnspan=2,
                                   sticky=NSEW)
 
-        # Labels for movenumbers and moves by black/white
+        # Labels for move numbers and moves by black/white
         self.__moveText = StringVar('')
-        self.__moveLabel = Label(base, textvariable=self.__moveText,
+        self.__moveLabel = Label(self.__moveFrame, textvariable=self.__moveText,
                                  anchor='e', justify=LEFT, width=4,
-                                 font = ("Lucidia Console", 10), bg = "white")
-        self.__moveLabel.grid(row=0, column=1, sticky=N, rowspan=1000)
+                                 font = ("Times New Roman", 12))
+        self.__moveLabel.grid(row=0, column=0, sticky=N, rowspan=1)
         self.__whiteText = StringVar('')
-        self.__whiteLabel = Label(base, textvariable=self.__whiteText,
+        self.__whiteLabel = Label(self.__moveFrame, textvariable=self.__whiteText,
                                   anchor='w', justify=LEFT, width=7,
-                                  font = ("Lucidia Console", 10), bg = "white")
-        self.__whiteLabel.grid(row=0, column=2, sticky=N, rowspan=1000)
+                                  font = ("Times New Roman", 12))
+        self.__whiteLabel.grid(row=0, column=1, sticky=N, rowspan=1)
         self.__blackText = StringVar('')
-        self.__blackLabel = Label(base, textvariable=self.__blackText,
+        self.__blackLabel = Label(self.__moveFrame, textvariable=self.__blackText,
                                   anchor='w', justify=LEFT, width=7,
-                                  font = ("Lucidia Console", 10), bg = "white")
-        self.__blackLabel.grid(row=0, column=3, sticky=N, rowspan=1000)
-
-        self.__engineEvalText = StringVar('')
-        self.__analysisEvalLabel = Label(base,
-                textvariable=self.__engineEvalText, anchor='w',
-                justify=LEFT, width=6)
-        self.__analysisEvalLabel.grid(row=1, column=6, rowspan=1000,
-                sticky=N)
+                                  font = ("Times New Roman", 12))
+        self.__blackLabel.grid(row=0, column=2, sticky=N, rowspan=1)
 
         self.__engineMoveText = StringVar('')
-        self.__analysisMoveLabel = Label(base,
+        self.__analysisMoveLabel = Label(self.__analysisFrame,
                 textvariable=self.__engineMoveText, anchor='w',
                 justify=LEFT, width=7)
-        self.__analysisMoveLabel.grid(row=1, column=5, rowspan=1000,
+        self.__analysisMoveLabel.grid(row=1, column=0, rowspan=1,
                 sticky=N)
+
+        self.__engineEvalText = StringVar('')
+        self.__analysisEvalLabel = Label(self.__analysisFrame,
+                textvariable=self.__engineEvalText, anchor='w',
+                justify=LEFT, width=6)
+        self.__analysisEvalLabel.grid(row=1, column=1, rowspan=1,
+                sticky=N)
+
+        self.__gameNavigationFrame = Frame(self.__base)
+        self.__genericButton = Button(self.__gameNavigationFrame, text='Retrieve Games',
+        command=self.__download)
+        self.__genericButton.grid(row=0, column=0, sticky=NSEW)
+        self.__genericButton = Button(self.__gameNavigationFrame, text='Next Game',
+                command=self.__nextGame)
+        self.__genericButton.grid(row=0, column=1, sticky=NSEW)
+        self.__gameNavigationFrame.grid(row = 1, column = 0, columnspan= 2, sticky = W)
+
 
         self.__promotionText = ''
         self.__promotionImages = []
@@ -97,6 +129,7 @@ class Game:
         self.__base.bind('<Left>', self.__backtrackPGN)
         self.__base.bind('<space>', self.__printFEN)
         self.__base.bind('<Up>', self.__printPGN)
+        self.__base.bind('<Return>', self.__inputGo)
 
         # Tracker for when pieces are moved
         self.__activeCell = Cell()
@@ -117,6 +150,30 @@ class Game:
 
         self.__readFEN(FENCode, asWhite)
 
+        # NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
+        # THIS IS A TEMP VARIABLE. THIS WILL BE MOVED LATER.
+        self.__whiteGameTree = {}
+        self.__blackGameTree = {}
+        # NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
+
+        if os.path.exists("user.json"):
+           with open("user.json", "r") as f:
+                self.__userData = json.load(f)
+                self.__playerGameTree = self.__userData["USER_TREE"]
+                self.__opponentGameTree = self.__userData["OPPONENT_TREE"]
+        else:
+            self.__userData = {} # this is just so python doesn't yell at me maybe
+
+    def dummyfxn(self):
+        self.__goFlag = True
+
+    def __inputGo(self, event):
+        # print("enter")
+        if len(self.__betterMoveEntry.get()) != 0:
+            self.__goFlag = True
+        # else:
+        #     print('rip')
+
     def __readFEN(self, FENCode, asWhite):
         """ Takes in a FENCode and initializes the board """
         boardInfo = FENCode.split(" ")
@@ -129,6 +186,9 @@ class Game:
         halfMoveCount = boardInfo[4]
         fullMoveCount = boardInfo[5]
 
+        # When the player at the bottom part of the board is black,
+        # the position is simply miorred rather than changing indexing.
+        # Consequently, when printing out the FEN, this must be reversed
         if not asWhite:
             boardCode = boardCode[::-1]
         self.__isPlayerWhite = asWhite
@@ -677,6 +737,8 @@ class Game:
         
         playsound(getFile(path), False)
 
+        self.__resetShapes()
+
     def __inCheck(self, isWhite, board):
         """ Determines on a board if there is a check """
 
@@ -776,7 +838,7 @@ class Game:
         # is castling basically
         delta = Coordinate.getDifference(newPos, oldPos)
 
-        if abs(delta.y) > 1 and self.__activeCell.text.upper() == "K":
+        if abs(delta.y) > 1 and pieceText.upper() == "K":
             if (delta.y > 0 and self.__isPlayerWhite) or (
                 delta.y < 0 and not self.__isPlayerWhite):
                 return "O-O"
@@ -964,20 +1026,20 @@ class Game:
             self.__engineEvalText.set("")
             self.__engineMoveText.set("")
 
-            instance = Engine.Engine()
+            instance = Engine()
             engineOutput = instance.evaluate_at_position(self.__printFEN(None),
-                                                         depth = 17, lines = 5)
+                                                         depth = 23, lines = 5, threads = 4, hashSize = 4096)
               
             for moveSuggestion in engineOutput:
                 if len(moveSuggestion) == 0:
                     continue
                 moveText = moveSuggestion.split(" ")[0]
                 evalText = moveSuggestion.split(" ")[1]
-                pieceToPromote = None
+                promotionPiece = None
                 if len(moveText) == 5:
-                    promotionPiece = moveSuggestion[-1]
+                    promotionPiece = moveText[-1]
                     if self.__isWhite:
-                        promotionPiece.upper()
+                        promotionPiece = promotionPiece.upper()
                     moveText = moveText[:-1]
 
                 endPosX = 8-int(moveText[-1])
@@ -994,7 +1056,7 @@ class Game:
                     Coordinate(startPosX, startPosY), 
                     Coordinate(endPosX, endPosY), 
                     self.__board.getTextBoard(), 
-                    pieceToPromote
+                    promotionPiece
                     )
                 
                 if not self.__isWhite:
@@ -1074,6 +1136,8 @@ class Game:
 
         return fenString
 
+    # This is essentially a stripped version of __endMove but without
+    # any GUI or actual board updates
     def __getTheorheticalAN(self, origin, final, board, promotionPiece = None):
         activePiece = board[origin.x][origin.y]
 
@@ -1149,19 +1213,94 @@ class Game:
         popup.mainloop()
 
     def __download(self):
-        self.__activeGames = downloader.downloadGames("bankericebutt")
-        
+        self.__activeGames = downloader.downloadGames(self.__userData)        
 
     def __nextGame(self):
-        self.__activeGameMoves = downloader.parsePGN(
-            self.__activeGames.pop(0)['pgn'])
+        activeGame = self.__activeGames.pop(0)
+        self.__isPlayerWhite = activeGame['white']['username'] == self.__userData["USERNAME"]
 
-        self.__readFEN(self.DEFAULT_FEN, True)
+        self.__activeGameMoves = downloader.parsePGN(activeGame['pgn'])
+
+        self.__readFEN(self.DEFAULT_FEN, self.__isPlayerWhite)
         
         self.__blackText.set("")
         self.__whiteText.set("")
         self.__moveText.set("")
         self.__pgnIndex = 0
+        self.__boardHistory = []
+
+        # moveBranch = self.__whiteGameTree if self.__isPlayerWhite else self.__blackGameTree
+        for move in self.__activeGameMoves:
+
+            # Checks if the move is being made by you
+            # moves by others will be appended w/o question
+            yourMove = not self.__isWhite ^ self.__isPlayerWhite
+            activeFEN = self.__printFEN(None)
+
+            # NOTE: Instead of indexing by the full FEN, I'm choosing
+            #       to just index by position + castling + en passant,
+            #       but I'll just ignore the 50 mr and movecount.
+            #       I doubt it matters.
+            partialFEN = activeFEN.split(" ")[:4]
+            cutFEN = ""
+            for item in partialFEN:
+                cutFEN += item + " "
+            # please fix this later, removes the last space
+            cutFEN = cutFEN[:-1]
+            
+            moveInfo = self.__moveToCoordinate(move)
+
+            if yourMove:
+                if cutFEN not in list(self.__playerGameTree.keys()): 
+                    self.__playerGameTree[cutFEN] = []
+                if move not in self.__playerGameTree[cutFEN]:
+                    self.__activeArrows[(moveInfo["startPos"].toTuple(), moveInfo["endPos"].toTuple())] = self.__board.drawArrow(getCanvasFromBoardCoordinate(moveInfo["startPos"]), getCanvasFromBoardCoordinate(moveInfo["endPos"]))
+                    self.__movePlayedText.set("Move played here was " + move+". Do you like it?")
+                    self.__board.update_idletasks()
+                    self.__runAnalysis()
+                    self.__board.update_idletasks()
+                    
+                    while not self.__goFlag:
+                        self.__board.update()
+                    self.__goFlag = False
+
+                    userRe = self.__betterMoveEntry.get()
+                    if len(userRe) == 0:
+                        self.__playerGameTree[cutFEN].append(move)
+                    else:
+                        self.__betterMoveEntry.delete(0, END)
+                        # Prevents a duplicate entry
+                        if not userRe in self.__playerGameTree[cutFEN]:
+                            self.__playerGameTree[cutFEN].append(userRe)
+                            
+                        gameID = int(activeGame["url"].split("/")[-1])
+                        self.__userData["CURRENT_GAME_ID"] = gameID
+                        self.__userData["USER_TREE"] = self.__playerGameTree
+                        self.__userData["OPPONENT_TREE"] = self.__opponentGameTree
+                        with open("user.json", "w") as f:
+                            json.dump(self.__userData, f)
+                        return
+                    
+            else: 
+                if cutFEN not in list(self.__opponentGameTree.keys()): 
+                    self.__opponentGameTree[cutFEN] = []
+                if move not in self.__opponentGameTree[cutFEN]:
+                    self.__opponentGameTree[cutFEN].append(move)
+
+            self.pushMove(move)
+            self.__board.update_idletasks()
+            time.sleep(0.5)
+
+        # If the game terminates before you make a bad move,
+        # dump everything and finish.            
+        gameID = int(activeGame["url"].split("/")[-1])
+        self.__userData["CURRENT_GAME_ID"] = gameID
+        self.__userData["USER_TREE"] = self.__playerGameTree
+        self.__userData["OPPONENT_TREE"] = self.__opponentGameTree
+        with open("user.json", "w") as f:
+            json.dump(self.__userData, f)
+        return
+            
 
     def __printPGN(self, event):
         print("pgn: ", end = " ")

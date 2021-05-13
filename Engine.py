@@ -16,14 +16,25 @@ class Engine():
             bufsize=1
         )
 
-    def evaluate_at_position(self, position, depth=18, lines=1):
+    def evaluate_at_position(self, position, depth=18, lines=3, threads = 1, hashSize = 16):
         self.__base.stdin.write("ucinewgame\n")
         self.__isReady()
+
         self.__base.stdin.write(
             "setoption name MultiPV value " + str(lines)+"\n")
         self.__isReady()
+
+        self.__base.stdin.write(
+            "setoption name Threads value " + str(threads)+"\n")
+        self.__isReady()
+
+        self.__base.stdin.write(
+            "setoption name Hash value " + str(hashSize)+"\n")
+        self.__isReady()
+
         self.__base.stdin.write('position fen '+position+"\n")
         self.__isReady()
+        
         self.__base.stdin.write("go depth "+str(depth)+"\n")
 
         bestMoves = ["" for i in range(lines)]
@@ -32,7 +43,7 @@ class Engine():
         while not "bestmove" in text:
             text = self.__base.stdout.readline()
             if (" depth " + str(depth)) in text and "multipv" in text:
-                cleanedLine = text.replace("mate ","M").replace("cp ","")
+                cleanedLine = text.replace("mate ","M").replace("cp ","").replace("\n", "")
                 decompLine = cleanedLine.split(" ")
                 index = int(decompLine[decompLine.index("multipv")+1])-1
                 

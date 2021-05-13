@@ -66,7 +66,10 @@ class Chessboard(Canvas):
             # Color shifts on every row
             lightBrownFlag = not lightBrownFlag
 
-    def drawArrow(self, point1, point2):
+    # God this was a mess and an awful thing to try and figure out
+    def drawArrow(self, point1, point2, color = "#6D9F58"):
+        """ Draws an arrow on the canvas, taking two coordinates as input """
+
         deltaX = point2.x - point1.x
         deltaY = point2.y - point1.y
         hypotnuse = (deltaX ** 2 + deltaY ** 2) ** 0.5
@@ -93,8 +96,8 @@ class Chessboard(Canvas):
             point1.y - self.SHORT_DISTANCE * cosineVal,
             ]
 
-        return super().create_polygon(points, fill='#6D9F58',
-                stipple='gray75')
+        return super().create_polygon(points, fill = color,
+                stipple="gray75")
 
     def drawCircleHighlight(self, point, customWidth=7.5):
         return super().create_oval(
