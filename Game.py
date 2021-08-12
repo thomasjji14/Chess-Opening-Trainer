@@ -9,6 +9,7 @@ from Coordinate import Coordinate
 from CanvasUtility import *
 from Cell import Cell
 from FileManager import *
+from Player import *
 import downloader
 import time
 import datetime
@@ -150,12 +151,6 @@ class Game:
 
         self.__readFEN(FENCode, asWhite)
 
-        # NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
-        # THIS IS A TEMP VARIABLE. THIS WILL BE MOVED LATER.
-        self.__whiteGameTree = {}
-        self.__blackGameTree = {}
-        # NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
-
         if os.path.exists("user.json"):
            with open("user.json", "r") as f:
                 self.__userData = json.load(f)
@@ -168,11 +163,8 @@ class Game:
         self.__goFlag = True
 
     def __inputGo(self, event):
-        # print("enter")
         if len(self.__betterMoveEntry.get()) != 0:
             self.__goFlag = True
-        # else:
-        #     print('rip')
 
     def __readFEN(self, FENCode, asWhite):
         """ Takes in a FENCode and initializes the board """
@@ -212,6 +204,11 @@ class Game:
 
         # Assigns FEN fields to the class
         self.__isWhite = currentColor == "w"
+
+        self.__whiteKingCastle = False
+        self.__whiteQueenCastle = False
+        self.__blackKingCastle = False
+        self.__blackQueenCastle = False
 
         if "K" in castlingRights:
             self.__whiteKingCastle = True
@@ -739,6 +736,21 @@ class Game:
 
         self.__resetShapes()
 
+        if self.__isWhite:
+            self.__board.update_idletasks()
+            
+            # enginePlayer = Engine()
+            # move = enginePlayer.getMove(self.__printFEN(None),depth = 23, threads = 4, hashSize = 4096)
+            # self.pushMove(move)
+
+            # databasePlayer = lichessPlayer(speeds = ["bullet", "blitz"], ratings=[1600, 1800])
+            # move = databasePlayer.getMove(self.__printFEN(None))
+            # self.pushMove(move)
+
+
+
+
+
     def __inCheck(self, isWhite, board):
         """ Determines on a board if there is a check """
 
@@ -1028,7 +1040,7 @@ class Game:
 
             instance = Engine()
             engineOutput = instance.evaluate_at_position(self.__printFEN(None),
-                                                         depth = 23, lines = 5, threads = 4, hashSize = 4096)
+                                                         depth = 24, lines = 5, threads = 4, hashSize = 6144)
               
             for moveSuggestion in engineOutput:
                 if len(moveSuggestion) == 0:

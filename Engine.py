@@ -1,9 +1,7 @@
 import subprocess
-import os
-import time
-import sys
+from Player import Player
 
-class Engine():
+class Engine(Player):
     
     def __init__(self):
         self.__base = subprocess.Popen(
@@ -58,6 +56,11 @@ class Engine():
         self.__base.stdin.write("quit\n")
 
         return bestMoves
+
+    def getMove(self, position, depth=18, threads = 1, hashSize = 16):
+        bestMove = self.evaluate_at_position(position = position, depth = depth, lines = 1, threads = threads, hashSize = hashSize)[0]
+        moveText = bestMove.split(" ")[0]
+        return moveText
     
     def __isReady(self):
         self.__base.stdin.write('isready\n')
